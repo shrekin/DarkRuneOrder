@@ -164,7 +164,6 @@ function DarkRuneOrder.RefreshRoster()
 end
 
 function DarkRuneOrder.ShowRoster()
-    DarkRuneOrder.RequestVersions()
-    DarkRuneOrder.RefreshRoster()
     rosterFrame:Show()
+    DarkRuneOrder.RequestVersions()
 end
