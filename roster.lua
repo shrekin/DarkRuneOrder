@@ -121,26 +121,31 @@ for i = 1, MAX_ROWS do
     rows[i] = row
 end
 
--- Returns ordered list of short player names for the current group
+-- Returns ordered list of short player names for the current group.
+-- Own player is always first.
 local function GetGroupMembers()
     local members = {}
+    local pname = UnitName("player")
+    local playerShort = (pname and pname:match("^([^%-]+)")) or pname or ""
+    table.insert(members, playerShort)
+
     if IsInRaid() then
         for i = 1, GetNumGroupMembers() do
             local name = UnitName("raid" .. i)
             if name then
-                table.insert(members, (name:match("^([^%-]+)") or name))
+                local short = name:match("^([^%-]+)") or name
+                if short ~= playerShort then
+                    table.insert(members, short)
+                end
             end
         end
     elseif IsInGroup() then
-        table.insert(members, UnitName("player"))
         for i = 1, GetNumSubgroupMembers() do
             local name = UnitName("party" .. i)
             if name then
-                table.insert(members, (name:match("^([^%-]+)") or name))
+                table.insert(members, name:match("^([^%-]+)") or name)
             end
         end
-    else
-        table.insert(members, UnitName("player"))
     end
     return members
 end

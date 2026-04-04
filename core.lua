@@ -51,7 +51,9 @@ end)
 function DarkRuneOrder.OnLoad()
     C_ChatInfo.RegisterAddonMessagePrefix(ADDON_PREFIX)
     DarkRuneOrderDB = DarkRuneOrderDB or {}
-    DarkRuneOrder.playerVersions[UnitName("player")] = ADDON_VERSION
+    local pname = UnitName("player")
+    local playerShort = (pname and pname:match("^([^%-]+)")) or pname
+    DarkRuneOrder.playerVersions[playerShort] = ADDON_VERSION
     -- Restore last known order so the display survives /reload
     if DarkRuneOrderDB.lastOrder and #DarkRuneOrderDB.lastOrder > 0 then
         DarkRuneOrder.ShowDisplay(DarkRuneOrderDB.lastOrder)
@@ -97,7 +99,9 @@ end
 
 -- Broadcasts own version to the group
 function DarkRuneOrder.BroadcastVersion()
-    DarkRuneOrder.playerVersions[UnitName("player")] = ADDON_VERSION
+    local pname = UnitName("player")
+    local playerShort = (pname and pname:match("^([^%-]+)")) or pname
+    DarkRuneOrder.playerVersions[playerShort] = ADDON_VERSION
     local msg = "VERSION_REPLY:" .. ADDON_VERSION
     if IsInRaid() then
         C_ChatInfo.SendAddonMessage(ADDON_PREFIX, msg, "RAID")
@@ -109,7 +113,9 @@ end
 -- Asks all group members to send their version; clears stale data first
 function DarkRuneOrder.RequestVersions()
     DarkRuneOrder.playerVersions = {}
-    DarkRuneOrder.playerVersions[UnitName("player")] = ADDON_VERSION
+    local pname = UnitName("player")
+    local playerShort = (pname and pname:match("^([^%-]+)")) or pname
+    DarkRuneOrder.playerVersions[playerShort] = ADDON_VERSION
     if DarkRuneOrder.RefreshRoster then
         DarkRuneOrder.RefreshRoster()
     end
