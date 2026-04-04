@@ -104,30 +104,50 @@ end
 
 -- ── Callbacks called from core.lua's single event frame ──────────────────────
 
+local function UnitHasDarkRune(unitID)
+    for i = 1, 40 do
+        local aura = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex(unitID, i, "HARMFUL")
+        if aura == nil then
+            -- Fallback: legacy UnitDebuff
+            local n, _, _, _, _, _, _, _, _, sid = UnitDebuff(unitID, i)
+            if not n then break end
+            if sid == DARK_RUNE_ID then return true end
+        else
+            if not aura then break end
+            if aura.spellId == DARK_RUNE_ID then return true end
+        end
+    end
+    return false
+end
+
 function DarkRuneOrder.OnEncounterReset()
     ClearMarked()
 end
 
-function DarkRuneOrder.OnCombatLog()
-    local _, subevent, _, _, _, _, _, _, destName, _, _, spellId, _, _, auraType =
-        CombatLogGetCurrentEventInfo()
+function DarkRuneOrder.OnUnitAura(unitID)
+    if not unitID then return end
+    if unitID ~= "player"
+        and not unitID:match("^raid%d")
+        and not unitID:match("^party%d") then return end
 
-    if spellId ~= DARK_RUNE_ID then return end
+    local name = UnitName(unitID)
+    if not name then return end
+    local shortName = name:match("^([^%-]+)") or name
 
-    local shortName = destName and (destName:match("^([^%-]+)") or destName)
-    if not shortName then return end
+    if not UnitHasDarkRune(unitID) then return end
 
-    if subevent == "SPELL_AURA_APPLIED" and auraType == "DEBUFF" then
-        local now = GetTime()
-        if now - lastMarkTime > ROUND_TIMEOUT then
-            markedPlayers = {}
-        end
-        lastMarkTime = now
-
-        for _, n in ipairs(markedPlayers) do
-            if n == shortName then return end
-        end
-        table.insert(markedPlayers, shortName)
-        RefreshMarked()
+    -- Already in list?
+    for _, n in ipairs(markedPlayers) do
+        if n == shortName then return end
     end
+
+    -- New round if enough time has passed
+    local now = GetTime()
+    if now - lastMarkTime > ROUND_TIMEOUT then
+        markedPlayers = {}
+    end
+    lastMarkTime = now
+
+    table.insert(markedPlayers, shortName)
+    RefreshMarked()
 end

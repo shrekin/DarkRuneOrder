@@ -21,7 +21,7 @@ eventFrame:RegisterEvent("ENCOUNTER_END")
 eventFrame:RegisterEvent("CHAT_MSG_ADDON")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_DIFFICULTY_CHANGED")
-eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+eventFrame:RegisterEvent("UNIT_AURA")
 eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
@@ -50,8 +50,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if DarkRuneOrder.RefreshDifficultyLabel then
             DarkRuneOrder.RefreshDifficultyLabel()
         end
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        if DarkRuneOrder.OnCombatLog then DarkRuneOrder.OnCombatLog() end
+    elseif event == "UNIT_AURA" then
+        if DarkRuneOrder.OnUnitAura then DarkRuneOrder.OnUnitAura(...) end
     elseif event == "GROUP_ROSTER_UPDATE" then
         if DarkRuneOrder.RefreshRoster then DarkRuneOrder.RefreshRoster() end
     end
