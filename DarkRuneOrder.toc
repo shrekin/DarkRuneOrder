@@ -9,3 +9,4 @@ core.lua
 display.lua
 picker.lua
 roster.lua
+marked.lua

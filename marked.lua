@@ -1,0 +1,142 @@
+-- marked.lua
+-- Tracks players marked by Dark Rune (1249609) via combat log
+DarkRuneOrder = DarkRuneOrder or {}
+
+local DARK_RUNE_ID  = 1249609
+local MAX_MARKED    = 5
+local ROW_H         = 20
+local ROUND_TIMEOUT = 15  -- seconds between rounds
+
+local markedPlayers = {}
+local lastMarkTime  = 0
+
+-- ── UI ───────────────────────────────────────────────────────────────────────
+
+local markedFrame = CreateFrame("Frame", "DarkRuneOrderMarked", UIParent, "BackdropTemplate")
+markedFrame:SetSize(160, 36)
+markedFrame:SetPoint("LEFT", "DarkRuneOrderPicker", "RIGHT", 8, 0)
+markedFrame:SetMovable(true)
+markedFrame:EnableMouse(true)
+markedFrame:RegisterForDrag("LeftButton")
+markedFrame:SetScript("OnDragStart", markedFrame.StartMoving)
+markedFrame:SetScript("OnDragStop", markedFrame.StopMovingOrSizing)
+markedFrame:SetBackdrop({
+    bgFile   = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    edgeFile = "Interface\\Buttons\\WHITE8X8",
+    tile = true, tileSize = 32, edgeSize = 2,
+    insets = { left = 2, right = 2, top = 2, bottom = 2 },
+})
+markedFrame:SetBackdropBorderColor(0.408, 0.227, 0.651, 1)
+markedFrame:SetScript("OnMouseUp", function(self, button)
+    if button == "RightButton" then markedFrame:Hide() end
+end)
+markedFrame:Hide()
+
+-- Border line at top
+local markedBorder = markedFrame:CreateTexture(nil, "BORDER")
+markedBorder:SetHeight(2)
+markedBorder:SetPoint("TOPLEFT",  markedFrame, "TOPLEFT")
+markedBorder:SetPoint("TOPRIGHT", markedFrame, "TOPRIGHT")
+markedBorder:SetColorTexture(0.5, 0.4, 0.8, 1)
+
+-- Title
+local markedTitle = markedFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+markedTitle:SetFont("Fonts\\FORCED_NARROWS.TTF", 12, "OUTLINE")
+markedTitle:SetPoint("TOP", markedFrame, "TOP", 0, -10)
+markedTitle:SetText("Dark Rune")
+markedTitle:SetTextColor(0.8, 0.55, 1, 1)
+
+-- Pre-build player rows
+local rows = {}
+for i = 1, MAX_MARKED do
+    local row = CreateFrame("Frame", nil, markedFrame)
+    row:SetHeight(ROW_H)
+    row:SetPoint("TOPLEFT",  markedFrame, "TOPLEFT",  6, -(26 + (i - 1) * ROW_H))
+    row:SetPoint("TOPRIGHT", markedFrame, "TOPRIGHT", -6, -(26 + (i - 1) * ROW_H))
+
+    -- Alternating background
+    local rowBg = row:CreateTexture(nil, "BACKGROUND")
+    rowBg:SetAllPoints()
+    rowBg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.04 or 0)
+
+    local numLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    numLabel:SetPoint("LEFT", row, "LEFT", 2, 0)
+    numLabel:SetWidth(18)
+    numLabel:SetJustifyH("LEFT")
+    numLabel:SetTextColor(0.6, 0.6, 0.6, 1)
+    row.numLabel = numLabel
+
+    local nameLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    nameLabel:SetPoint("LEFT", row, "LEFT", 20, 0)
+    nameLabel:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+    nameLabel:SetJustifyH("LEFT")
+    nameLabel:SetTextColor(1, 1, 1, 1)
+    row.nameLabel = nameLabel
+
+    row:Hide()
+    rows[i] = row
+end
+
+local function RefreshMarked()
+    local count = #markedPlayers
+
+    for i = 1, MAX_MARKED do rows[i]:Hide() end
+
+    for i, name in ipairs(markedPlayers) do
+        rows[i].numLabel:SetText(i .. ".")
+        rows[i].nameLabel:SetText(name)
+        rows[i]:Show()
+    end
+
+    if count > 0 then
+        markedFrame:SetHeight(28 + count * ROW_H + 6)
+        markedFrame:Show()
+    else
+        markedFrame:Hide()
+    end
+end
+
+local function ClearMarked()
+    markedPlayers = {}
+    lastMarkTime  = 0
+    markedFrame:Hide()
+end
+
+-- ── Combat log ───────────────────────────────────────────────────────────────
+
+local cleuFrame = CreateFrame("Frame")
+cleuFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+cleuFrame:RegisterEvent("ENCOUNTER_START")
+cleuFrame:RegisterEvent("ENCOUNTER_END")
+
+cleuFrame:SetScript("OnEvent", function(self, event)
+    if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
+        ClearMarked()
+        return
+    end
+
+    -- COMBAT_LOG_EVENT_UNFILTERED
+    local _, subevent, _, _, _, _, _, _, destName, _, _, spellId, _, _, auraType =
+        CombatLogGetCurrentEventInfo()
+
+    if spellId ~= DARK_RUNE_ID then return end
+
+    local shortName = destName and (destName:match("^([^%-]+)") or destName)
+    if not shortName then return end
+
+    if subevent == "SPELL_AURA_APPLIED" and auraType == "DEBUFF" then
+        -- New round if enough time has passed since last marking
+        local now = GetTime()
+        if now - lastMarkTime > ROUND_TIMEOUT then
+            markedPlayers = {}
+        end
+        lastMarkTime = now
+
+        -- Add player if not already listed
+        for _, n in ipairs(markedPlayers) do
+            if n == shortName then return end
+        end
+        table.insert(markedPlayers, shortName)
+        RefreshMarked()
+    end
+end)
