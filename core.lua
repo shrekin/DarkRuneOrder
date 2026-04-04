@@ -2,6 +2,7 @@
 DarkRuneOrder = DarkRuneOrder or {}
 
 local ADDON_PREFIX = "DARKRUNE"
+local ADDON_VERSION = "1.0.0"
 
 -- Difficulty ID → number of symbols required
 local SYMBOL_COUNT = { [14] = 3, [15] = 4, [16] = 5 }
@@ -9,6 +10,7 @@ local SYMBOL_COUNT = { [14] = 3, [15] = 4, [16] = 5 }
 -- State
 DarkRuneOrder.testMode = false
 DarkRuneOrder.testDifficulty = 3  -- used only in test mode
+DarkRuneOrder.playerVersions = {}  -- [shortName] = version string
 
 -- Event frame
 local eventFrame = CreateFrame("Frame")
@@ -34,7 +36,12 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if prefix == ADDON_PREFIX then
             DarkRuneOrder.OnMessage(message, sender)
         end
-    elseif event == "PLAYER_ENTERING_WORLD" or event == "PLAYER_DIFFICULTY_CHANGED" then
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        DarkRuneOrder.BroadcastVersion()
+        if DarkRuneOrder.RefreshDifficultyLabel then
+            DarkRuneOrder.RefreshDifficultyLabel()
+        end
+    elseif event == "PLAYER_DIFFICULTY_CHANGED" then
         if DarkRuneOrder.RefreshDifficultyLabel then
             DarkRuneOrder.RefreshDifficultyLabel()
         end
@@ -44,6 +51,7 @@ end)
 function DarkRuneOrder.OnLoad()
     C_ChatInfo.RegisterAddonMessagePrefix(ADDON_PREFIX)
     DarkRuneOrderDB = DarkRuneOrderDB or {}
+    DarkRuneOrder.playerVersions[UnitName("player")] = ADDON_VERSION
     -- Restore last known order so the display survives /reload
     if DarkRuneOrderDB.lastOrder and #DarkRuneOrderDB.lastOrder > 0 then
         DarkRuneOrder.ShowDisplay(DarkRuneOrderDB.lastOrder)
@@ -87,6 +95,31 @@ function DarkRuneOrder.SenderIsLeader(sender)
     return false
 end
 
+-- Broadcasts own version to the group
+function DarkRuneOrder.BroadcastVersion()
+    DarkRuneOrder.playerVersions[UnitName("player")] = ADDON_VERSION
+    local msg = "VERSION_REPLY:" .. ADDON_VERSION
+    if IsInRaid() then
+        C_ChatInfo.SendAddonMessage(ADDON_PREFIX, msg, "RAID")
+    elseif IsInGroup() then
+        C_ChatInfo.SendAddonMessage(ADDON_PREFIX, msg, "PARTY")
+    end
+end
+
+-- Asks all group members to send their version; clears stale data first
+function DarkRuneOrder.RequestVersions()
+    DarkRuneOrder.playerVersions = {}
+    DarkRuneOrder.playerVersions[UnitName("player")] = ADDON_VERSION
+    if DarkRuneOrder.RefreshRoster then
+        DarkRuneOrder.RefreshRoster()
+    end
+    if IsInRaid() then
+        C_ChatInfo.SendAddonMessage(ADDON_PREFIX, "VERSION_REQUEST", "RAID")
+    elseif IsInGroup() then
+        C_ChatInfo.SendAddonMessage(ADDON_PREFIX, "VERSION_REQUEST", "PARTY")
+    end
+end
+
 -- Sends the ordered symbol list to the group
 function DarkRuneOrder.SendOrder(symbolIDs)
     local payload = "ORDER:" .. table.concat(symbolIDs, ",")
@@ -108,11 +141,9 @@ function DarkRuneOrder.SendOrder(symbolIDs)
     -- Announce order in /say
     local parts = {}
     for i, id in ipairs(symbolIDs) do
-        parts[i] = id .. ""
---        parts[i] = i .. ". " .. id
+        parts[i] = id
     end
     SendChatMessage(table.concat(parts, ", "), "SAY")
-    -- SendChatMessage("Order: " .. table.concat(parts, "  "), "SAY")
 end
 
 -- Sends a reset signal to the group
@@ -134,6 +165,23 @@ end
 
 -- Handles all incoming addon messages
 function DarkRuneOrder.OnMessage(message, sender)
+    -- Version request: reply with our version
+    if message == "VERSION_REQUEST" then
+        DarkRuneOrder.BroadcastVersion()
+        return
+    end
+
+    -- Version reply: store the sender's version
+    local ver = message:match("^VERSION_REPLY:(.+)$")
+    if ver then
+        local senderShort = sender:match("^([^%-]+)") or sender
+        DarkRuneOrder.playerVersions[senderShort] = ver
+        if DarkRuneOrder.RefreshRoster then
+            DarkRuneOrder.RefreshRoster()
+        end
+        return
+    end
+
     if message == "RESET" then
         DarkRuneOrderDB.lastOrder = nil
         DarkRuneOrder.HideDisplay()

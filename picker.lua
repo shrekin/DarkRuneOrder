@@ -38,6 +38,17 @@ local closeBtn = CreateFrame("Button", nil, pickerFrame, "UIPanelCloseButton")
 closeBtn:SetSize(24, 24)
 closeBtn:SetPoint("TOPRIGHT", pickerFrame, "TOPRIGHT", -8, -8)
 
+-- Gear button (test mode only, left of close button)
+local gearBtn = CreateFrame("Button", nil, pickerFrame)
+gearBtn:SetSize(22, 22)
+gearBtn:SetPoint("TOPRIGHT", pickerFrame, "TOPRIGHT", -34, -9)
+gearBtn:SetNormalTexture("Interface\\GossipFrame\\DailyActiveButton")
+gearBtn:SetHighlightTexture("Interface\\GossipFrame\\DailyActiveButton", "ADD")
+gearBtn:SetScript("OnClick", function()
+    DarkRuneOrder.ShowRoster()
+end)
+gearBtn:Hide()
+
 -- Central decorative circle
 local centerDot = pickerFrame:CreateTexture(nil, "ARTWORK")
 centerDot:SetSize(28, 28)
@@ -206,8 +217,10 @@ function DarkRuneOrder.ShowPicker()
     if DarkRuneOrder.testMode then
         testLabel:Show()
         UpdateDiffLabel()
+        gearBtn:Show()
     else
         testLabel:Hide()
+        gearBtn:Hide()
         local _, _, _, difficultyName = GetInstanceInfo()
         local count = DarkRuneOrder.GetSymbolCount()
         diffLabel:SetText((difficultyName ~= "" and difficultyName or "Normal") .. " (" .. count .. " symbols)")

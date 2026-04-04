@@ -8,3 +8,4 @@ symbols.lua
 core.lua
 display.lua
 picker.lua
+roster.lua
