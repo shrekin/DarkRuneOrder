@@ -2,10 +2,16 @@
 -- Tracks players marked by Dark Rune (1249609) via combat log
 DarkRuneOrder = DarkRuneOrder or {}
 
-local DARK_RUNE_ID  = 1249609
-local MAX_MARKED    = 5
-local ROW_H         = 20
-local ROUND_TIMEOUT = 15  -- seconds between rounds
+local DARK_RUNE_ID   = 1249609
+local MAX_MARKED     = 5
+local ROW_H          = 20
+local ROUND_TIMEOUT  = 15  -- seconds between rounds
+
+-- Resolve spell name once at load time (name is public, spellId is secret)
+local DARK_RUNE_NAME = C_Spell and C_Spell.GetSpellName(DARK_RUNE_ID)
+if not DARK_RUNE_NAME then
+    DARK_RUNE_NAME = GetSpellInfo and GetSpellInfo(DARK_RUNE_ID)
+end
 
 local markedPlayers = {}
 local lastMarkTime  = 0
@@ -105,12 +111,10 @@ end
 -- ── Callbacks called from core.lua's single event frame ──────────────────────
 
 local function UnitHasDarkRune(unitID)
-    for i = 1, 40 do
-        local aura = C_UnitAuras.GetAuraDataByIndex(unitID, i, "HARMFUL")
-        if not aura then break end
-        if aura.spellId == DARK_RUNE_ID then return true end
-    end
-    return false
+    if not DARK_RUNE_NAME then return false end
+    -- AuraUtil.FindAuraByName is Blizzard's own secure function — avoids
+    -- direct spellId comparison which is forbidden for secret raid values
+    return AuraUtil.FindAuraByName(DARK_RUNE_NAME, unitID, "HARMFUL") ~= nil
 end
 
 function DarkRuneOrder.OnEncounterReset()
