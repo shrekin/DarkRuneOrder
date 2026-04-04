@@ -108,30 +108,16 @@ local function ClearMarked()
     markedFrame:Hide()
 end
 
--- ── Callbacks called from core.lua's single event frame ──────────────────────
+-- ── Polling (avoids UNIT_AURA taint in Midnight raid context) ────────────────
 
-local function UnitHasDarkRune(unitID)
-    if not DARK_RUNE_NAME then return false end
-    -- AuraUtil.FindAuraByName is Blizzard's own secure function — avoids
-    -- direct spellId comparison which is forbidden for secret raid values
-    return AuraUtil.FindAuraByName(DARK_RUNE_NAME, unitID, "HARMFUL") ~= nil
-end
-
-function DarkRuneOrder.OnEncounterReset()
-    ClearMarked()
-end
-
-function DarkRuneOrder.OnUnitAura(unitID)
-    if not unitID then return end
-    if unitID ~= "player"
-        and not unitID:match("^raid%d")
-        and not unitID:match("^party%d") then return end
+local function CheckUnit(unitID)
+    if not UnitExists(unitID) then return end
+    if not DARK_RUNE_NAME then return end
+    if not AuraUtil.FindAuraByName(DARK_RUNE_NAME, unitID, "HARMFUL") then return end
 
     local name = UnitName(unitID)
     if not name then return end
     local shortName = name:match("^([^%-]+)") or name
-
-    if not UnitHasDarkRune(unitID) then return end
 
     -- Already in list?
     for _, n in ipairs(markedPlayers) do
@@ -147,4 +133,25 @@ function DarkRuneOrder.OnUnitAura(unitID)
 
     table.insert(markedPlayers, shortName)
     RefreshMarked()
+end
+
+local function ScanGroupForDarkRune()
+    CheckUnit("player")
+    if IsInRaid() then
+        for i = 1, GetNumGroupMembers() do
+            CheckUnit("raid" .. i)
+        end
+    elseif IsInGroup() then
+        for i = 1, GetNumSubgroupMembers() do
+            CheckUnit("party" .. i)
+        end
+    end
+end
+
+C_Timer.NewTicker(0.5, ScanGroupForDarkRune)
+
+-- ── Callbacks called from core.lua's single event frame ──────────────────────
+
+function DarkRuneOrder.OnEncounterReset()
+    ClearMarked()
 end
