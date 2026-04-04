@@ -54,12 +54,88 @@ for i = 1, 5 do
     cells[i] = cell
 end
 
+-- ── Cast bar (Death's Dirge, spell 1249620) ──────────────────────────────────
+
+local DEATH_DIRGE_ID = 1249620
+local castEndTime    = 0
+local castDuration   = 1  -- avoid division by zero
+
+local castBarFrame = CreateFrame("Frame", "DarkRuneOrderCastBar", UIParent)
+castBarFrame:SetHeight(18)
+castBarFrame:SetPoint("TOP", displayFrame, "BOTTOM", 0, -2)
+castBarFrame:SetWidth(300)
+
+local castBarBg = castBarFrame:CreateTexture(nil, "BACKGROUND")
+castBarBg:SetAllPoints()
+castBarBg:SetColorTexture(0, 0, 0, 0.75)
+
+local castBarBorderLine = castBarFrame:CreateTexture(nil, "BORDER")
+castBarBorderLine:SetHeight(1)
+castBarBorderLine:SetPoint("BOTTOMLEFT",  castBarFrame, "BOTTOMLEFT")
+castBarBorderLine:SetPoint("BOTTOMRIGHT", castBarFrame, "BOTTOMRIGHT")
+castBarBorderLine:SetColorTexture(0.5, 0.4, 0.8, 1)
+
+local castBarFill = castBarFrame:CreateTexture(nil, "ARTWORK")
+castBarFill:SetPoint("TOPLEFT",    castBarFrame, "TOPLEFT",    1, -1)
+castBarFill:SetPoint("BOTTOMLEFT", castBarFrame, "BOTTOMLEFT", 1,  1)
+castBarFill:SetColorTexture(0.85, 0.15, 0.15, 0.9)
+
+local castBarLabel = castBarFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+castBarLabel:SetAllPoints()
+castBarLabel:SetJustifyH("CENTER")
+castBarLabel:SetTextColor(1, 1, 1, 1)
+
+castBarFrame:Hide()
+
+castBarFrame:SetScript("OnUpdate", function(self)
+    local remaining = castEndTime - GetTime()
+    if remaining <= 0 then
+        self:Hide()
+        return
+    end
+    local frac   = math.max(remaining / castDuration, 0)
+    local fillW  = math.max((self:GetWidth() - 2) * frac, 0)
+    castBarFill:SetWidth(fillW)
+    castBarLabel:SetText(string.format("Death's Dirge  %.1fs", remaining))
+end)
+
+local BOSS_UNITS = { "boss1", "boss2", "boss3", "boss4", "boss5" }
+
+local castEventFrame = CreateFrame("Frame")
+castEventFrame:RegisterEvent("UNIT_SPELLCAST_START")
+castEventFrame:RegisterEvent("UNIT_SPELLCAST_STOP")
+castEventFrame:RegisterEvent("UNIT_SPELLCAST_FAILED")
+castEventFrame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+
+castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
+    local isBoss = false
+    for _, boss in ipairs(BOSS_UNITS) do
+        if unitID == boss then isBoss = true; break end
+    end
+    if not isBoss then return end
+
+    if event == "UNIT_SPELLCAST_START" and spellID == DEATH_DIRGE_ID then
+        local _, _, _, startMS, endMS = UnitCastingInfo(unitID)
+        if startMS and endMS then
+            castDuration = math.max((endMS - startMS) / 1000, 0.001)
+            castEndTime  = endMS / 1000
+            castBarFrame:SetWidth(displayFrame:GetWidth())
+            castBarFrame:Show()
+        end
+    elseif spellID == DEATH_DIRGE_ID then
+        castBarFrame:Hide()
+    end
+end)
+
+-- ── Public API ────────────────────────────────────────────────────────────────
+
 -- Shows the display with an ordered list of symbol IDs
 function DarkRuneOrder.ShowDisplay(symbolIDs)
     local count = #symbolIDs
 
     -- Resize frame to fit exactly the number of symbols
     displayFrame:SetWidth(count * CELL_WIDTH + 16)
+    castBarFrame:SetWidth(count * CELL_WIDTH + 16)
 
     -- Hide all cells then populate
     for i = 1, 5 do
@@ -83,4 +159,14 @@ end
 
 function DarkRuneOrder.HideDisplay()
     displayFrame:Hide()
+    castBarFrame:Hide()
+end
+
+-- Simulates a Death's Dirge cast for testing (duration in seconds)
+function DarkRuneOrder.SimulateCast(duration)
+    duration = duration or 6
+    castDuration = duration
+    castEndTime  = GetTime() + duration
+    castBarFrame:SetWidth(displayFrame:GetWidth())
+    castBarFrame:Show()
 end
