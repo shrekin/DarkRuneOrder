@@ -1,6 +1,6 @@
 ## Interface: 120001
 ## Title: DarkRuneOrder
-## Notes: Coordinates Death's Dirge symbol order for L'ura
+## Notes: Death's Dirge symbol order for L'ura helper
 ## Version: 1.0.0
 ## SavedVariables: DarkRuneOrderDB
 
