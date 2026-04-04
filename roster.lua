@@ -57,12 +57,12 @@ local content = CreateFrame("Frame", nil, scrollFrame)
 content:SetSize(CONTENT_W, 1)
 scrollFrame:SetScrollChild(content)
 
--- Column header
-local hdrStatus  = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+-- Column headers
+local hdrStatus = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 hdrStatus:SetPoint("TOPLEFT", content, "TOPLEFT", 4, 0)
 hdrStatus:SetWidth(18)
 hdrStatus:SetJustifyH("LEFT")
-hdrStatus:SetText("|cffcccccc#|r")
+hdrStatus:SetText("|cffcccccc-|r")
 
 local hdrName = content:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 hdrName:SetPoint("TOPLEFT", content, "TOPLEFT", 26, 0)
@@ -76,7 +76,7 @@ hdrVersion:SetWidth(70)
 hdrVersion:SetJustifyH("RIGHT")
 hdrVersion:SetText("|cffccccccVersion|r")
 
--- Pre-build row pool (header occupies 1 row height offset)
+-- Pre-build row pool
 local rows = {}
 for i = 1, MAX_ROWS do
     local row = CreateFrame("Frame", nil, content)
@@ -88,11 +88,21 @@ for i = 1, MAX_ROWS do
     rowBg:SetAllPoints()
     rowBg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.04 or 0)
 
-    local statusLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    statusLabel:SetPoint("LEFT", row, "LEFT", 4, 0)
-    statusLabel:SetWidth(18)
-    statusLabel:SetJustifyH("LEFT")
-    row.statusLabel = statusLabel
+    -- Green checkmark (addon installed)
+    local checkTex = row:CreateTexture(nil, "OVERLAY")
+    checkTex:SetSize(14, 14)
+    checkTex:SetPoint("LEFT", row, "LEFT", 4, 0)
+    checkTex:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+    checkTex:Hide()
+    row.checkTex = checkTex
+
+    -- Red X (addon not installed)
+    local crossTex = row:CreateTexture(nil, "OVERLAY")
+    crossTex:SetSize(14, 14)
+    crossTex:SetPoint("LEFT", row, "LEFT", 4, 0)
+    crossTex:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
+    crossTex:Hide()
+    row.crossTex = crossTex
 
     local nameLabel = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     nameLabel:SetPoint("LEFT", row, "LEFT", 26, 0)
@@ -142,6 +152,8 @@ function DarkRuneOrder.RefreshRoster()
 
     for i = 1, MAX_ROWS do
         rows[i]:Hide()
+        rows[i].checkTex:Hide()
+        rows[i].crossTex:Hide()
     end
 
     for i, name in ipairs(members) do
@@ -150,10 +162,12 @@ function DarkRuneOrder.RefreshRoster()
         local version = DarkRuneOrder.playerVersions[name]
 
         if version then
-            row.statusLabel:SetText("|cff00cc00✓|r")
+            row.checkTex:Show()
+            row.crossTex:Hide()
             row.versionLabel:SetText("|cffaaaaaa" .. version .. "|r")
         else
-            row.statusLabel:SetText("|cffff4444✗|r")
+            row.checkTex:Hide()
+            row.crossTex:Show()
             row.versionLabel:SetText("|cff666666-|r")
         end
         row.nameLabel:SetText(name)
@@ -167,3 +181,10 @@ function DarkRuneOrder.ShowRoster()
     rosterFrame:Show()
     DarkRuneOrder.RequestVersions()
 end
+
+-- Auto-refresh roster when group composition changes
+local rosterEventFrame = CreateFrame("Frame")
+rosterEventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+rosterEventFrame:SetScript("OnEvent", function()
+    DarkRuneOrder.RefreshRoster()
+end)
