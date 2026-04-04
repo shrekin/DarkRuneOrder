@@ -56,7 +56,8 @@ end
 
 -- ── Cast bar (Death's Dirge, spell 1249620) ──────────────────────────────────
 
-local DEATH_DIRGE_ID = 1249620
+local DEATH_DIRGE_ID = 1244412
+local DARK_RUNE_ID   = 1249609
 local castEndTime    = 0
 local castDuration   = 1  -- avoid division by zero
 
@@ -114,14 +115,27 @@ castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
     end
     if not isBoss then return end
 
-    if event == "UNIT_SPELLCAST_START" and spellID == DEATH_DIRGE_ID then
-        local _, _, _, startMS, endMS = UnitCastingInfo(unitID)
-        if startMS and endMS then
-            castDuration = math.max((endMS - startMS) / 1000, 0.001)
-            castEndTime  = endMS / 1000
-            castBarFrame:SetWidth(displayFrame:GetWidth())
-            castBarFrame:Show()
+    if event == "UNIT_SPELLCAST_START" then
+        if spellID == DARK_RUNE_ID then
+            -- New mechanic starting: clear stale order and auto-open picker for leader/force
+            DarkRuneOrderDB.lastOrder = nil
+            DarkRuneOrder.HideDisplay()
+            if UnitIsGroupLeader("player") or DarkRuneOrder.forceMode then
+                if DarkRuneOrder.ShowPicker then
+                    DarkRuneOrder.ShowPicker()
+                end
+            end
+
+        elseif spellID == DEATH_DIRGE_ID then
+            local _, _, _, startMS, endMS = UnitCastingInfo(unitID)
+            if startMS and endMS then
+                castDuration = math.max((endMS - startMS) / 1000, 0.001)
+                castEndTime  = endMS / 1000
+                castBarFrame:SetWidth(displayFrame:GetWidth())
+                castBarFrame:Show()
+            end
         end
+
     elseif spellID == DEATH_DIRGE_ID then
         castBarFrame:Hide()
     end
