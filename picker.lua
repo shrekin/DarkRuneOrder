@@ -59,7 +59,7 @@ centerDot:SetTexture("Interface\\AddOns\\DarkRuneOrder\\texture\\tank.tga")
 local titleLabel = pickerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 titleLabel:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
 titleLabel:SetPoint("TOP", pickerFrame, "TOP", 0, -20)
-titleLabel:SetText("ITV Dark Rune")
+titleLabel:SetText("Dark Rune Helper")
 titleLabel:SetTextColor(0.408, 0.227, 0.651, 1)
 
 -- "TEST MODE" label (shown only in test mode, below title)
