@@ -1,6 +1,6 @@
 ## Interface: 120001
 ## Title: DarkRuneOrder
-## Notes: Death's Dirge symbol order for L'ura helper
+## Notes: L'ura Dark Rune Helper
 ## Version: 1.0.0
 ## SavedVariables: DarkRuneOrderDB
 ## Author: shark
