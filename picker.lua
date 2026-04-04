@@ -1,0 +1,236 @@
+-- picker.lua
+DarkRuneOrder = DarkRuneOrder or {}
+
+-- Pentagon math: 5 points evenly spaced starting from the top
+local RADIUS = 58
+local function PentagonPositions()
+    local pos = {}
+    for i = 1, 5 do
+        local angle = math.pi / 2 - (i - 1) * (2 * math.pi / 5)
+        pos[i] = { x = RADIUS * math.cos(angle), y = RADIUS * math.sin(angle) }
+    end
+    return pos
+end
+
+-- Main picker frame
+local pickerFrame = CreateFrame("Frame", "DarkRuneOrderPicker", UIParent, "BackdropTemplate")
+pickerFrame:SetSize(210, 300)
+pickerFrame:SetPoint("CENTER")
+pickerFrame:SetMovable(true)
+pickerFrame:EnableMouse(true)
+pickerFrame:RegisterForDrag("LeftButton")
+pickerFrame:SetScript("OnDragStart", pickerFrame.StartMoving)
+pickerFrame:SetScript("OnDragStop", pickerFrame.StopMovingOrSizing)
+pickerFrame:SetBackdrop({
+    bgFile   = "Interface\\DialogFrame\\UI-DialogBox-Background",
+    edgeFile = "Interface\\Buttons\\WHITE8X8",
+    tile = true, tileSize = 32, edgeSize = 2,
+    insets = { left = 2, right = 2, top = 2, bottom = 2 },
+})
+pickerFrame:SetBackdropBorderColor(0.408, 0.227, 0.651, 1)
+pickerFrame:SetScript("OnHide", function()
+    DarkRuneOrder.HideDisplay()
+end)
+pickerFrame:Hide()
+
+-- Close button (top-right corner)
+local closeBtn = CreateFrame("Button", nil, pickerFrame, "UIPanelCloseButton")
+closeBtn:SetSize(24, 24)
+closeBtn:SetPoint("TOPRIGHT", pickerFrame, "TOPRIGHT", -8, -8)
+
+-- Central decorative circle
+local centerDot = pickerFrame:CreateTexture(nil, "ARTWORK")
+centerDot:SetSize(28, 28)
+centerDot:SetPoint("CENTER", pickerFrame, "CENTER", 0, 14)
+centerDot:SetTexture("Interface\\AddOns\\DarkRuneOrder\\texture\\tank.tga")
+
+-- "ITV DR" title label (always visible at top)
+local titleLabel = pickerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+titleLabel:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
+titleLabel:SetPoint("TOP", pickerFrame, "TOP", 0, -20)
+titleLabel:SetText("ITV Dark Rune")
+titleLabel:SetTextColor(0.408, 0.227, 0.651, 1)
+
+-- "TEST MODE" label (shown only in test mode, below title)
+local testLabel = pickerFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+testLabel:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+testLabel:SetPoint("TOP", titleLabel, "BOTTOM", 0, -4)
+testLabel:SetText("TEST MODE (/dr t)")
+testLabel:SetTextColor(1, 0.5, 0, 1)
+testLabel:Hide()
+
+-- Reset button (always visible)
+local resetBtn = CreateFrame("Button", nil, pickerFrame, "GameMenuButtonTemplate")
+resetBtn:SetSize(80, 22)
+resetBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", 0, 24)
+resetBtn:SetText("Reset")
+
+-- Difficulty label (always shown above reset button; clickable in test mode to cycle)
+local diffLabelBtn = CreateFrame("Button", nil, pickerFrame)
+diffLabelBtn:SetSize(160, 20)
+diffLabelBtn:SetPoint("BOTTOM", resetBtn, "TOP", 0, 12)
+local diffLabel = diffLabelBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+diffLabel:SetFont("Fonts\\FORCED_NARROWS.TTF", 14, "OUTLINE")
+diffLabel:SetAllPoints()
+diffLabel:SetTextColor(0.8, 0.8, 0.8, 1)
+diffLabelBtn:Hide()
+
+-- Internal state
+local clickOrder  = {}   -- symbol IDs in click order
+local hadBroadcast = false  -- true if we sent at least one ORDER message
+
+local DIFF_LABELS = { [3] = "Normal (3 symbols)", [4] = "Heroic (4 symbols)", [5] = "Mythic (5 symbols)" }
+
+local function UpdateDiffLabel()
+    diffLabel:SetText(DIFF_LABELS[DarkRuneOrder.testDifficulty] or "Normal (3 symbols)")
+end
+
+local function ResetState(sendMessage)
+    if sendMessage and hadBroadcast then
+        DarkRuneOrder.SendReset()
+    end
+    clickOrder = {}
+    hadBroadcast = false
+end
+
+-- Symbol buttons
+local symbolButtons = {}
+local positions = PentagonPositions()
+
+for i, sym in ipairs(DarkRuneOrder.Symbols) do
+    local btn = CreateFrame("Button", nil, pickerFrame)
+    btn:SetSize(44, 44)
+    btn:SetPoint("CENTER", pickerFrame, "CENTER", positions[i].x, positions[i].y + 14)
+
+    -- Colored stroke (outer circle, full button size)
+    -- local strokeTex = btn:CreateTexture(nil, "BACKGROUND")
+    -- strokeTex:SetAllPoints()
+    -- strokeTex:SetColorTexture(sym.color[1], sym.color[2], sym.color[3], 0.6)
+    -- local strokeMask = btn:CreateMaskTexture()
+    -- strokeMask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
+    -- strokeMask:SetAllPoints(strokeTex)
+    -- strokeTex:AddMaskTexture(strokeMask)
+
+    -- Black inner circle (inset 2px to create stroke effect)
+    local btnBg = btn:CreateTexture(nil, "BORDER")
+    btnBg:SetSize(50, 50)
+    btnBg:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    btnBg:SetColorTexture(0, 0, 0, 0.3)
+    local bgMask = btn:CreateMaskTexture()
+    bgMask:SetTexture("Interface\\CharacterFrame\\TempPortraitAlphaMask")
+    bgMask:SetAllPoints(btnBg)
+    btnBg:AddMaskTexture(bgMask)
+
+    -- Symbol icon
+    local symIcon = btn:CreateTexture(nil, "OVERLAY")
+    symIcon:SetSize(32, 32)
+    symIcon:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    symIcon:SetTexture(sym.texture)
+
+    -- Number badge (top-right corner)
+    local badge = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    badge:SetPoint("TOPRIGHT", btn, "TOPRIGHT", 4, 4)
+    badge:SetTextColor(1, 1, 0, 1)
+    badge:SetText("")
+    btn.badge = badge
+
+    btn.symbolID = sym.id
+
+    btn:SetScript("OnClick", function(self)
+        local required = DarkRuneOrder.GetSymbolCount()
+        if #clickOrder >= required then return end
+
+        table.insert(clickOrder, self.symbolID)
+
+        -- Badge shows all positions this symbol was selected (e.g. "2" or "1,4")
+        local positions = {}
+        for pos, id in ipairs(clickOrder) do
+            if id == self.symbolID then
+                table.insert(positions, tostring(pos))
+            end
+        end
+        self.badge:SetText(table.concat(positions, ","))
+        self:SetAlpha(0.45)
+
+        if #clickOrder == required then
+            hadBroadcast = true
+            DarkRuneOrder.SendOrder(clickOrder)
+        end
+    end)
+
+    -- Hover highlight
+    btn:SetScript("OnEnter", function(self)
+        if #clickOrder < DarkRuneOrder.GetSymbolCount() then
+            self:SetAlpha(0.75)
+        end
+    end)
+    btn:SetScript("OnLeave", function(self)
+        -- Restore dim if this button was clicked at least once
+        local clicked = false
+        for _, id in ipairs(clickOrder) do
+            if id == self.symbolID then clicked = true; break end
+        end
+        self:SetAlpha(clicked and 0.45 or 1)
+    end)
+
+    symbolButtons[i] = btn
+end
+
+-- Reset all button visual state
+local function RefreshButtons()
+    for _, btn in ipairs(symbolButtons) do
+        btn.badge:SetText("")
+        btn:SetAlpha(1)
+    end
+end
+
+resetBtn:SetScript("OnClick", function()
+    ResetState(true)
+    RefreshButtons()
+end)
+
+diffLabelBtn:SetScript("OnClick", function()
+    if not DarkRuneOrder.testMode then return end
+    local cycle = { [3] = 4, [4] = 5, [5] = 3 }
+    DarkRuneOrder.testDifficulty = cycle[DarkRuneOrder.testDifficulty] or 3
+    UpdateDiffLabel()
+    ResetState(false)
+    RefreshButtons()
+end)
+
+-- Public: open the picker
+function DarkRuneOrder.ShowPicker()
+    ResetState(false)
+    RefreshButtons()
+
+    if DarkRuneOrder.testMode then
+        testLabel:Show()
+        UpdateDiffLabel()
+    else
+        testLabel:Hide()
+        local _, _, _, difficultyName = GetInstanceInfo()
+        local count = DarkRuneOrder.GetSymbolCount()
+        diffLabel:SetText((difficultyName ~= "" and difficultyName or "Normal") .. " (" .. count .. " symbols)")
+    end
+    diffLabelBtn:Show()
+
+    pickerFrame:Show()
+end
+
+-- Resets picker state and visuals (called externally e.g. from display right-click)
+function DarkRuneOrder.ResetPicker()
+    ResetState(false)
+    if pickerFrame:IsShown() then
+        RefreshButtons()
+    end
+end
+
+-- Updates the difficulty label live (called on zone/difficulty change events)
+function DarkRuneOrder.RefreshDifficultyLabel()
+    if not pickerFrame:IsShown() then return end
+    if DarkRuneOrder.testMode then return end
+    local _, _, _, difficultyName = GetInstanceInfo()
+    local count = DarkRuneOrder.GetSymbolCount()
+    diffLabel:SetText((difficultyName ~= "" and difficultyName or "Normal") .. " (" .. count .. " symbols)")
+end
+
