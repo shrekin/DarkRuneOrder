@@ -9,6 +9,7 @@ local SYMBOL_COUNT = { [14] = 3, [15] = 4, [16] = 5 }
 
 -- State
 DarkRuneOrder.testMode = false
+DarkRuneOrder.forceMode = false
 DarkRuneOrder.testDifficulty = 3  -- used only in test mode
 DarkRuneOrder.playerVersions = {}  -- [shortName] = version string
 
@@ -128,7 +129,8 @@ end
 
 -- Sends the ordered symbol list to the group
 function DarkRuneOrder.SendOrder(symbolIDs)
-    local payload = "ORDER:" .. table.concat(symbolIDs, ",")
+    local prefix = (DarkRuneOrder.forceMode or DarkRuneOrder.testMode) and "FORCE_ORDER:" or "ORDER:"
+    local payload = prefix .. table.concat(symbolIDs, ",")
     if DarkRuneOrder.testMode then
         if IsInGroup() then
             C_ChatInfo.SendAddonMessage(ADDON_PREFIX, payload, "WHISPER", UnitName("player"))
@@ -194,8 +196,17 @@ function DarkRuneOrder.OnMessage(message, sender)
         return
     end
 
+    if message:sub(1, 12) == "FORCE_ORDER:" then
+        local ids = {}
+        for id in message:sub(13):gmatch("[^,]+") do
+            table.insert(ids, id)
+        end
+        DarkRuneOrderDB.lastOrder = ids
+        DarkRuneOrder.ShowDisplay(ids)
+        return
+    end
+
     if message:sub(1, 6) == "ORDER:" then
-        -- Reject spoofed messages outside test mode
         if not DarkRuneOrder.testMode and not DarkRuneOrder.SenderIsLeader(sender) then
             return
         end
@@ -214,14 +225,20 @@ SlashCmdList["DARKRUNE"] = function(msg)
     local arg = (msg or ""):lower():match("^%s*(.-)%s*$")
     if arg == "t" then
         DarkRuneOrder.testMode = true
+        DarkRuneOrder.forceMode = false
         DarkRuneOrder.testDifficulty = 3
+        DarkRuneOrder.ShowPicker()
+    elseif arg == "force" then
+        DarkRuneOrder.testMode = false
+        DarkRuneOrder.forceMode = true
         DarkRuneOrder.ShowPicker()
     else
         DarkRuneOrder.testMode = false
+        DarkRuneOrder.forceMode = false
         if UnitIsGroupLeader("player") then
             DarkRuneOrder.ShowPicker()
         else
-            print("|cff00ff00DarkRuneOrder|r: Only the raid leader can open the picker.")
+            print("|cff00ff00DarkRuneOrder|r: Only the raid leader can open the picker. Use /dr force to override.")
         end
     end
 end
