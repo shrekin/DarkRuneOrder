@@ -12,5 +12,3 @@ display.lua
 picker.lua
 roster.lua
 marked.lua
-
-print("DarkRuneOrder successfully loaded!")
