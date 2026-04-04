@@ -189,9 +189,4 @@ function DarkRuneOrder.ShowRoster()
     rosterFrame:Show()
 end
 
--- Auto-refresh roster when group composition changes
-local rosterEventFrame = CreateFrame("Frame")
-rosterEventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
-rosterEventFrame:SetScript("OnEvent", function()
-    DarkRuneOrder.RefreshRoster()
-end)
+-- RefreshRoster is called by core.lua's eventFrame on GROUP_ROSTER_UPDATE

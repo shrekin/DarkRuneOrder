@@ -21,6 +21,8 @@ eventFrame:RegisterEvent("ENCOUNTER_END")
 eventFrame:RegisterEvent("CHAT_MSG_ADDON")
 eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_DIFFICULTY_CHANGED")
+eventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" then
@@ -30,8 +32,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         end
     elseif event == "ENCOUNTER_START" then
         DarkRuneOrder.OnEncounterStart()
+        if DarkRuneOrder.OnEncounterReset then DarkRuneOrder.OnEncounterReset() end
     elseif event == "ENCOUNTER_END" then
         DarkRuneOrder.OnEncounterEnd()
+        if DarkRuneOrder.OnEncounterReset then DarkRuneOrder.OnEncounterReset() end
     elseif event == "CHAT_MSG_ADDON" then
         local prefix, message, channel, sender = ...
         if prefix == ADDON_PREFIX then
@@ -46,6 +50,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if DarkRuneOrder.RefreshDifficultyLabel then
             DarkRuneOrder.RefreshDifficultyLabel()
         end
+    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        if DarkRuneOrder.OnCombatLog then DarkRuneOrder.OnCombatLog() end
+    elseif event == "GROUP_ROSTER_UPDATE" then
+        if DarkRuneOrder.RefreshRoster then DarkRuneOrder.RefreshRoster() end
     end
 end)
 

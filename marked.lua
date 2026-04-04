@@ -102,20 +102,13 @@ local function ClearMarked()
     markedFrame:Hide()
 end
 
--- ── Combat log ───────────────────────────────────────────────────────────────
+-- ── Callbacks called from core.lua's single event frame ──────────────────────
 
-local cleuFrame = CreateFrame("Frame")
-cleuFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-cleuFrame:RegisterEvent("ENCOUNTER_START")
-cleuFrame:RegisterEvent("ENCOUNTER_END")
+function DarkRuneOrder.OnEncounterReset()
+    ClearMarked()
+end
 
-cleuFrame:SetScript("OnEvent", function(self, event)
-    if event == "ENCOUNTER_START" or event == "ENCOUNTER_END" then
-        ClearMarked()
-        return
-    end
-
-    -- COMBAT_LOG_EVENT_UNFILTERED
+function DarkRuneOrder.OnCombatLog()
     local _, subevent, _, _, _, _, _, _, destName, _, _, spellId, _, _, auraType =
         CombatLogGetCurrentEventInfo()
 
@@ -125,18 +118,16 @@ cleuFrame:SetScript("OnEvent", function(self, event)
     if not shortName then return end
 
     if subevent == "SPELL_AURA_APPLIED" and auraType == "DEBUFF" then
-        -- New round if enough time has passed since last marking
         local now = GetTime()
         if now - lastMarkTime > ROUND_TIMEOUT then
             markedPlayers = {}
         end
         lastMarkTime = now
 
-        -- Add player if not already listed
         for _, n in ipairs(markedPlayers) do
             if n == shortName then return end
         end
         table.insert(markedPlayers, shortName)
         RefreshMarked()
     end
-end)
+end
