@@ -25,6 +25,9 @@ rosterFrame:SetScript("OnMouseUp", function(self, button)
         rosterFrame:Hide()
     end
 end)
+rosterFrame:SetScript("OnShow", function()
+    DarkRuneOrder.RequestVersions()
+end)
 rosterFrame:Hide()
 
 -- Title
@@ -184,7 +187,6 @@ end
 
 function DarkRuneOrder.ShowRoster()
     rosterFrame:Show()
-    DarkRuneOrder.RequestVersions()
 end
 
 -- Auto-refresh roster when group composition changes
