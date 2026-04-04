@@ -106,16 +106,9 @@ end
 
 local function UnitHasDarkRune(unitID)
     for i = 1, 40 do
-        local aura = C_UnitAuras and C_UnitAuras.GetAuraDataByIndex(unitID, i, "HARMFUL")
-        if aura == nil then
-            -- Fallback: legacy UnitDebuff
-            local n, _, _, _, _, _, _, _, _, sid = UnitDebuff(unitID, i)
-            if not n then break end
-            if sid == DARK_RUNE_ID then return true end
-        else
-            if not aura then break end
-            if aura.spellId == DARK_RUNE_ID then return true end
-        end
+        local aura = C_UnitAuras.GetAuraDataByIndex(unitID, i, "HARMFUL")
+        if not aura then break end
+        if aura.spellId == DARK_RUNE_ID then return true end
     end
     return false
 end
