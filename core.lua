@@ -2,7 +2,7 @@
 DarkRuneOrder = DarkRuneOrder or {}
 
 local ADDON_PREFIX = "DARKRUNE"
-local ADDON_VERSION = "1.0.0"
+local ADDON_VERSION = "1.0.1"
 
 -- Difficulty ID → number of symbols required
 local SYMBOL_COUNT = { [14] = 3, [15] = 4, [16] = 5 }
@@ -12,6 +12,9 @@ DarkRuneOrder.testMode = false
 DarkRuneOrder.forceMode = false
 DarkRuneOrder.testDifficulty = 3  -- used only in test mode
 DarkRuneOrder.playerVersions = {}  -- [shortName] = version string
+
+local lastOrderTime = 0  -- throttle duplicate ORDER messages
+local ORDER_THROTTLE = 2 -- seconds
 
 -- Event frame
 local eventFrame = CreateFrame("Frame")
@@ -57,6 +60,7 @@ end)
 function DarkRuneOrder.OnLoad()
     C_ChatInfo.RegisterAddonMessagePrefix(ADDON_PREFIX)
     DarkRuneOrderDB = DarkRuneOrderDB or {}
+    DarkRuneOrderDB.history = DarkRuneOrderDB.history or {}
     local pname = UnitName("player")
     local playerShort = (pname and pname:match("^([^%-]+)")) or pname
     DarkRuneOrder.playerVersions[playerShort] = ADDON_VERSION
@@ -89,15 +93,34 @@ end
 -- Checks if a sender name belongs to the current raid/group leader
 function DarkRuneOrder.SenderIsLeader(sender)
     local senderShort = sender:match("^([^%-]+)") or sender
-    local count = GetNumGroupMembers()
-    for i = 1, count do
-        local unit = "raid" .. i
-        local name = UnitName(unit)
-        if name then
-            local short = name:match("^([^%-]+)") or name
-            if short == senderShort and UnitIsGroupLeader(unit) then
-                return true
+    if IsInRaid() then
+        for i = 1, GetNumGroupMembers() do
+            local unit = "raid" .. i
+            local name = UnitName(unit)
+            if name then
+                local short = name:match("^([^%-]+)") or name
+                if short == senderShort and UnitIsGroupLeader(unit) then
+                    return true
+                end
             end
+        end
+    elseif IsInGroup() then
+        -- Check party members
+        for i = 1, GetNumSubgroupMembers() do
+            local unit = "party" .. i
+            local name = UnitName(unit)
+            if name then
+                local short = name:match("^([^%-]+)") or name
+                if short == senderShort and UnitIsGroupLeader(unit) then
+                    return true
+                end
+            end
+        end
+        -- Check player
+        local pname = UnitName("player")
+        local pshort = (pname and pname:match("^([^%-]+)")) or pname
+        if pshort == senderShort and UnitIsGroupLeader("player") then
+            return true
         end
     end
     return false
@@ -151,12 +174,35 @@ function DarkRuneOrder.SendOrder(symbolIDs)
         DarkRuneOrder.OnMessage(payload, UnitName("player"))
     end
 
-    -- Announce order in /say
+    -- Save to history (max 5 entries)
+    DarkRuneOrderDB.history = DarkRuneOrderDB.history or {}
+    table.insert(DarkRuneOrderDB.history, 1, {unpack(symbolIDs)})
+    while #DarkRuneOrderDB.history > 5 do
+        table.remove(DarkRuneOrderDB.history)
+    end
+
+    -- Announce order in chat (raid warning for leader, /say otherwise)
     local parts = {}
     for i, id in ipairs(symbolIDs) do
         parts[i] = id
     end
-    SendChatMessage(table.concat(parts, ", "), "SAY")
+    local orderStr = table.concat(parts, ", ")
+    if not DarkRuneOrder.testMode and UnitIsGroupLeader("player") and IsInRaid() then
+        SendChatMessage(orderStr, "RAID_WARNING")
+    else
+        SendChatMessage(orderStr, "SAY")
+    end
+end
+
+-- Re-sends the last order from history
+function DarkRuneOrder.SendLastOrder()
+    DarkRuneOrderDB.history = DarkRuneOrderDB.history or {}
+    if #DarkRuneOrderDB.history == 0 then
+        print("|cff00ff00DarkRuneOrder|r: No order history available.")
+        return
+    end
+    local last = DarkRuneOrderDB.history[1]
+    DarkRuneOrder.SendOrder(last)
 end
 
 -- Sends a reset signal to the group
@@ -201,11 +247,27 @@ function DarkRuneOrder.OnMessage(message, sender)
         return
     end
 
+    -- Validate parsed symbol IDs
+    local function ValidateSymbols(ids)
+        for _, id in ipairs(ids) do
+            if not DarkRuneOrder.SymbolByID[id] then
+                return false
+            end
+        end
+        return #ids > 0
+    end
+
     if message:sub(1, 12) == "FORCE_ORDER:" then
+        -- Throttle: ignore duplicate orders within ORDER_THROTTLE seconds
+        local now = GetTime()
+        if now - lastOrderTime < ORDER_THROTTLE then return end
+        lastOrderTime = now
+
         local ids = {}
         for id in message:sub(13):gmatch("[^,]+") do
             table.insert(ids, id)
         end
+        if not ValidateSymbols(ids) then return end
         DarkRuneOrderDB.lastOrder = ids
         DarkRuneOrder.ShowDisplay(ids)
         return
@@ -215,10 +277,16 @@ function DarkRuneOrder.OnMessage(message, sender)
         if not DarkRuneOrder.testMode and not DarkRuneOrder.SenderIsLeader(sender) then
             return
         end
+        -- Throttle: ignore duplicate orders within ORDER_THROTTLE seconds
+        local now = GetTime()
+        if now - lastOrderTime < ORDER_THROTTLE then return end
+        lastOrderTime = now
+
         local ids = {}
         for id in message:sub(7):gmatch("[^,]+") do
             table.insert(ids, id)
         end
+        if not ValidateSymbols(ids) then return end
         DarkRuneOrderDB.lastOrder = ids
         DarkRuneOrder.ShowDisplay(ids)
     end
@@ -237,6 +305,12 @@ SlashCmdList["DARKRUNE"] = function(msg)
         DarkRuneOrder.testMode = false
         DarkRuneOrder.forceMode = true
         DarkRuneOrder.ShowPicker()
+    elseif arg == "minimap" then
+        if DarkRuneOrder.ToggleMinimapButton then
+            DarkRuneOrder.ToggleMinimapButton()
+        end
+    elseif arg == "last" then
+        DarkRuneOrder.SendLastOrder()
     else
         DarkRuneOrder.testMode = false
         DarkRuneOrder.forceMode = false

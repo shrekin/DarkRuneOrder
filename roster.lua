@@ -32,7 +32,7 @@ rosterFrame:Hide()
 
 -- Title
 local rosterTitle = rosterFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-rosterTitle:SetFont("Fonts\\FORCED_NARROWS.TTF", 14, "OUTLINE")
+rosterTitle:SetFont("Interface\\AddOns\\DarkRuneOrder\\fonts\\Expressway.ttf", 14, "OUTLINE")
 rosterTitle:SetPoint("TOP", rosterFrame, "TOP", 0, -14)
 rosterTitle:SetText("Addon Status")
 rosterTitle:SetTextColor(1, 1, 1, 1)

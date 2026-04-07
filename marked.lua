@@ -12,6 +12,9 @@ local DARK_RUNE_NAME = C_Spell and C_Spell.GetSpellName(DARK_RUNE_ID)
 if not DARK_RUNE_NAME then
     DARK_RUNE_NAME = GetSpellInfo and GetSpellInfo(DARK_RUNE_ID)
 end
+if not DARK_RUNE_NAME then
+    DARK_RUNE_NAME = "Dark Rune"  -- hardcoded fallback (D2)
+end
 
 local markedPlayers = {}
 local lastMarkTime  = 0
@@ -47,7 +50,7 @@ markedBorder:SetColorTexture(0.5, 0.4, 0.8, 1)
 
 -- Title
 local markedTitle = markedFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-markedTitle:SetFont("Fonts\\FORCED_NARROWS.TTF", 12, "OUTLINE")
+markedTitle:SetFont("Interface\\AddOns\\DarkRuneOrder\\fonts\\Expressway.ttf", 12, "OUTLINE")
 markedTitle:SetPoint("TOP", markedFrame, "TOP", 0, -10)
 markedTitle:SetText("Dark Rune")
 markedTitle:SetTextColor(0.8, 0.55, 1, 1)

@@ -1,6 +1,8 @@
 -- picker.lua
 DarkRuneOrder = DarkRuneOrder or {}
 
+local EXPRESSWAY_FONT = "Interface\\AddOns\\DarkRuneOrder\\fonts\\Expressway.ttf"
+
 -- Pentagon math: 5 points evenly spaced starting from the top
 local RADIUS = 58
 local function PentagonPositions()
@@ -14,7 +16,7 @@ end
 
 -- Main picker frame
 local pickerFrame = CreateFrame("Frame", "DarkRuneOrderPicker", UIParent, "BackdropTemplate")
-pickerFrame:SetSize(210, 300)
+pickerFrame:SetSize(210, 330)
 pickerFrame:SetPoint("CENTER")
 pickerFrame:SetMovable(true)
 pickerFrame:EnableMouse(true)
@@ -86,12 +88,26 @@ testCastBtn:SetScript("OnClick", function()
 end)
 testCastBtn:Hide()
 
--- Difficulty label (always shown above reset button; clickable in test mode to cycle)
+-- Undo button (B5) — removes last symbol pick
+local undoBtn = CreateFrame("Button", nil, pickerFrame, "GameMenuButtonTemplate")
+undoBtn:SetSize(80, 22)
+undoBtn:SetPoint("LEFT", resetBtn, "RIGHT", 4, 0)
+undoBtn:SetText("Undo")
+undoBtn:Hide()
+
+-- Send Last button (C3) — re-sends last order from history
+local sendLastBtn = CreateFrame("Button", nil, pickerFrame, "GameMenuButtonTemplate")
+sendLastBtn:SetSize(80, 22)
+sendLastBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", 0, 48)
+sendLastBtn:SetText("Send Last")
+sendLastBtn:Hide()
+
+-- Difficulty label (always shown above buttons; clickable in test mode to cycle)
 local diffLabelBtn = CreateFrame("Button", nil, pickerFrame)
 diffLabelBtn:SetSize(160, 20)
-diffLabelBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", 0, 58)
+diffLabelBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", 0, 78)
 local diffLabel = diffLabelBtn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-diffLabel:SetFont("Fonts\\FORCED_NARROWS.TTF", 14, "OUTLINE")
+diffLabel:SetFont(EXPRESSWAY_FONT, 14, "OUTLINE")
 diffLabel:SetAllPoints()
 diffLabel:SetTextColor(0.8, 0.8, 0.8, 1)
 diffLabelBtn:Hide()
@@ -164,13 +180,13 @@ for i, sym in ipairs(DarkRuneOrder.Symbols) do
         table.insert(clickOrder, self.symbolID)
 
         -- Badge shows all positions this symbol was selected (e.g. "2" or "1,4")
-        local positions = {}
+        local badgePositions = {}
         for pos, id in ipairs(clickOrder) do
             if id == self.symbolID then
-                table.insert(positions, tostring(pos))
+                table.insert(badgePositions, tostring(pos))
             end
         end
-        self.badge:SetText(table.concat(positions, ","))
+        self.badge:SetText(table.concat(badgePositions, ","))
         self:SetAlpha(0.45)
 
         if #clickOrder == required then
@@ -205,9 +221,41 @@ local function RefreshButtons()
     end
 end
 
+-- Refresh badges for all buttons based on current clickOrder
+local function RefreshBadges()
+    for _, btn in ipairs(symbolButtons) do
+        local badgePositions = {}
+        for pos, id in ipairs(clickOrder) do
+            if id == btn.symbolID then
+                table.insert(badgePositions, tostring(pos))
+            end
+        end
+        if #badgePositions > 0 then
+            btn.badge:SetText(table.concat(badgePositions, ","))
+            btn:SetAlpha(0.45)
+        else
+            btn.badge:SetText("")
+            btn:SetAlpha(1)
+        end
+    end
+end
+
 resetBtn:SetScript("OnClick", function()
     ResetState(true)
     RefreshButtons()
+end)
+
+-- Undo: remove last symbol pick (B5)
+undoBtn:SetScript("OnClick", function()
+    if #clickOrder == 0 then return end
+    table.remove(clickOrder)
+    hadBroadcast = false
+    RefreshBadges()
+end)
+
+-- Send Last: re-send previous order from history (C3)
+sendLastBtn:SetScript("OnClick", function()
+    DarkRuneOrder.SendLastOrder()
 end)
 
 diffLabelBtn:SetScript("OnClick", function()
@@ -219,10 +267,27 @@ diffLabelBtn:SetScript("OnClick", function()
     RefreshButtons()
 end)
 
+-- Check if history has entries
+local function HasHistory()
+    DarkRuneOrderDB = DarkRuneOrderDB or {}
+    DarkRuneOrderDB.history = DarkRuneOrderDB.history or {}
+    return #DarkRuneOrderDB.history > 0
+end
+
 -- Public: open the picker
 function DarkRuneOrder.ShowPicker()
     ResetState(false)
     RefreshButtons()
+
+    -- Always show Undo
+    undoBtn:Show()
+
+    -- Show Send Last if history exists
+    if HasHistory() then
+        sendLastBtn:Show()
+    else
+        sendLastBtn:Hide()
+    end
 
     if DarkRuneOrder.testMode then
         testLabel:Show()
@@ -231,12 +296,16 @@ function DarkRuneOrder.ShowPicker()
         testCastBtn:Show()
         resetBtn:ClearAllPoints()
         resetBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", -46, 24)
+        undoBtn:ClearAllPoints()
+        undoBtn:SetPoint("LEFT", resetBtn, "RIGHT", 4, 0)
     else
         testLabel:Hide()
         gearBtn:Hide()
         testCastBtn:Hide()
         resetBtn:ClearAllPoints()
-        resetBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", 0, 24)
+        resetBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", -46, 24)
+        undoBtn:ClearAllPoints()
+        undoBtn:SetPoint("LEFT", resetBtn, "RIGHT", 4, 0)
         local _, _, _, difficultyName = GetInstanceInfo()
         local count = DarkRuneOrder.GetSymbolCount()
         diffLabel:SetText((difficultyName ~= "" and difficultyName or "Normal") .. " (" .. count .. " symbols)")

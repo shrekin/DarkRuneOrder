@@ -8,7 +8,13 @@ displayFrame:SetMovable(true)
 displayFrame:EnableMouse(true)
 displayFrame:RegisterForDrag("LeftButton")
 displayFrame:SetScript("OnDragStart", displayFrame.StartMoving)
-displayFrame:SetScript("OnDragStop", displayFrame.StopMovingOrSizing)
+displayFrame:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    -- Save position (C4)
+    local point, _, relPoint, x, y = self:GetPoint()
+    DarkRuneOrderDB = DarkRuneOrderDB or {}
+    DarkRuneOrderDB.displayPos = { point, relPoint, x, y }
+end)
 displayFrame:SetScript("OnMouseUp", function(self, button)
     if button == "RightButton" then
         DarkRuneOrderDB.lastOrder = nil
@@ -17,6 +23,26 @@ displayFrame:SetScript("OnMouseUp", function(self, button)
     end
 end)
 displayFrame:Hide()
+
+-- Restore saved position (C4)
+local function RestoreDisplayPosition()
+    DarkRuneOrderDB = DarkRuneOrderDB or {}
+    local pos = DarkRuneOrderDB.displayPos
+    if pos then
+        displayFrame:ClearAllPoints()
+        displayFrame:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
+    end
+end
+
+-- Defer position restore until SavedVariables are loaded
+local posRestoreFrame = CreateFrame("Frame")
+posRestoreFrame:RegisterEvent("ADDON_LOADED")
+posRestoreFrame:SetScript("OnEvent", function(self, event, name)
+    if name == "DarkRuneOrder" then
+        RestoreDisplayPosition()
+        self:UnregisterEvent("ADDON_LOADED")
+    end
+end)
 
 -- Semi-transparent dark background
 local bg = displayFrame:CreateTexture(nil, "BACKGROUND")
@@ -143,9 +169,27 @@ end)
 
 -- ── Public API ────────────────────────────────────────────────────────────────
 
+-- Fade-in animation helper (B2)
+local fadeElapsed = 0
+local function StartFadeIn(frame)
+    fadeElapsed = 0
+    frame:SetAlpha(0)
+    frame:SetScript("OnUpdate", function(self, dt)
+        fadeElapsed = fadeElapsed + dt
+        local alpha = math.min(fadeElapsed / 0.3, 1)
+        self:SetAlpha(alpha)
+        if alpha >= 1 then
+            self:SetScript("OnUpdate", nil)
+        end
+    end)
+end
+
 -- Shows the display with an ordered list of symbol IDs
 function DarkRuneOrder.ShowDisplay(symbolIDs)
     local count = #symbolIDs
+
+    -- Play sound to alert the player (B1)
+    PlaySound(SOUNDKIT.RAID_WARNING)
 
     -- Resize frame to fit exactly the number of symbols
     displayFrame:SetWidth(count * CELL_WIDTH + 16)
@@ -169,6 +213,7 @@ function DarkRuneOrder.ShowDisplay(symbolIDs)
     end
 
     displayFrame:Show()
+    StartFadeIn(displayFrame)  -- (B2)
 end
 
 function DarkRuneOrder.HideDisplay()

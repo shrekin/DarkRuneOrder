@@ -1,10 +1,10 @@
 ## Interface: 120001
 ## Title: DarkRuneOrder
 ## Notes: L'ura Dark Rune Helper
-## Version: 1.0.0
+## Version: 1.0.1
 ## SavedVariables: DarkRuneOrderDB
 ## Author: shark
-## X-Curse-Project-ID: 999999
+## X-Curse-Project-ID: 1504438
 
 symbols.lua
 core.lua
@@ -12,3 +12,4 @@ display.lua
 picker.lua
 roster.lua
 marked.lua
+minimap.lua

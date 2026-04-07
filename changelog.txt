@@ -1,0 +1,36 @@
+## v1.0.1 (2025-04-07)
+
+### Bug Fixes
+- Fixed SenderIsLeader not working in party groups — previously only checked raid units, now correctly validates leader in both raid and party contexts
+- Fixed non-existent font reference (FORCED_NARROWS.TTF) — replaced with bundled Expressway.ttf across picker, roster, and marked modules
+- Added validation for incoming symbol IDs — malformed addon messages no longer cause empty display slots
+- Fixed variable shadowing in picker.lua — local `positions` no longer shadows the pentagon layout variable
+
+### New Features
+- Minimap button — drag to reposition, left-click opens picker, right-click opens test mode. Toggle with `/dr minimap`
+- Order history — last 5 symbol orders are saved to SavedVariables, surviving /reload and relog
+- Send Last button — quickly re-send the previous order after a wipe or reset
+- Undo button — remove the last picked symbol without resetting the entire selection
+- Display position persistence — dragged display frame position is saved and restored across sessions
+- Raid Warning for leaders — raid leader now broadcasts order via /rw instead of /say for better visibility
+- `/dr last` slash command — re-send last order from chat
+- `/dr minimap` slash command — show/hide the minimap button
+
+### Improvements
+- Sound alert (RAID_WARNING) plays when a new symbol order is received
+- Smooth fade-in animation (0.3s) when the display appears
+- Incoming ORDER messages are throttled (2s cooldown) to prevent spam
+- Graceful degradation for Dark Rune spell name lookup — hardcoded fallback if API returns nil
+
+---
+
+## v1.0.0
+
+- Initial release
+- Symbol picker with pentagon layout
+- Addon-to-addon communication (ORDER, FORCE_ORDER, RESET, VERSION)
+- Cast bar tracking for Death's Dirge
+- Dark Rune debuff tracking via polling
+- Roster panel with addon version status
+- Test mode (/dr t) with difficulty cycling
+- SavedVariables for last order persistence across /reload
