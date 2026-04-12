@@ -72,14 +72,46 @@ testLabel:SetText("TEST MODE (/dr t)")
 testLabel:SetTextColor(1, 0.5, 0, 1)
 testLabel:Hide()
 
+-- Custom button factory: fill #0E131A, stroke + text #76787B
+local function CreateStyledButton(parent)
+    local btn = CreateFrame("Button", nil, parent)
+
+    local bg = btn:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(14/255, 19/255, 26/255, 1)  -- #0E131A
+
+    local function makeBorder(a, b, horiz)
+        local t = btn:CreateTexture(nil, "BORDER")
+        if horiz then t:SetHeight(1) else t:SetWidth(1) end
+        t:SetPoint(a, btn, a)
+        t:SetPoint(b, btn, b)
+        t:SetColorTexture(118/255, 120/255, 123/255, 1)  -- #76787B
+    end
+    makeBorder("TOPLEFT",    "TOPRIGHT",    true)
+    makeBorder("BOTTOMLEFT", "BOTTOMRIGHT", true)
+    makeBorder("TOPLEFT",    "BOTTOMLEFT",  false)
+    makeBorder("TOPRIGHT",   "BOTTOMRIGHT", false)
+
+    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetAllPoints()
+    label:SetJustifyH("CENTER")
+    label:SetJustifyV("MIDDLE")
+    label:SetTextColor(118/255, 120/255, 123/255, 1)  -- #76787B
+
+    function btn:SetText(str) label:SetText(str) end
+    function btn:GetText() return label:GetText() end
+
+    return btn
+end
+
 -- Reset button (always visible)
-local resetBtn = CreateFrame("Button", nil, pickerFrame, "GameMenuButtonTemplate")
+local resetBtn = CreateStyledButton(pickerFrame)
 resetBtn:SetSize(80, 22)
 resetBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", 0, 24)
 resetBtn:SetText("Reset")
 
 -- Test Cast button (test mode only)
-local testCastBtn = CreateFrame("Button", nil, pickerFrame, "GameMenuButtonTemplate")
+local testCastBtn = CreateStyledButton(pickerFrame)
 testCastBtn:SetSize(80, 22)
 testCastBtn:SetPoint("LEFT", resetBtn, "RIGHT", 4, 0)
 testCastBtn:SetText("Test Cast")
@@ -89,14 +121,14 @@ end)
 testCastBtn:Hide()
 
 -- Undo button (B5) — removes last symbol pick
-local undoBtn = CreateFrame("Button", nil, pickerFrame, "GameMenuButtonTemplate")
+local undoBtn = CreateStyledButton(pickerFrame)
 undoBtn:SetSize(80, 22)
 undoBtn:SetPoint("LEFT", resetBtn, "RIGHT", 4, 0)
 undoBtn:SetText("Undo")
 undoBtn:Hide()
 
 -- Send Last button (C3) — re-sends last order from history
-local sendLastBtn = CreateFrame("Button", nil, pickerFrame, "GameMenuButtonTemplate")
+local sendLastBtn = CreateStyledButton(pickerFrame)
 sendLastBtn:SetSize(80, 22)
 sendLastBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", 0, 48)
 sendLastBtn:SetText("Send Last")
