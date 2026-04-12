@@ -72,34 +72,83 @@ testLabel:SetText("TEST MODE (/dr t)")
 testLabel:SetTextColor(1, 0.5, 0, 1)
 testLabel:Hide()
 
--- Custom button factory: fill #0E131A, stroke + text #76787B
-local function CreateStyledButton(parent)
+-- Custom button factory
+-- stroke/hover: {r,g,b} tables.
+-- Default stroke: #76787B → hover: #FFFFFF.
+-- Custom stroke with no hover → hover auto-computed as 40% brighter (clamped).
+local HOVER_DURATION = 0.15  -- seconds
+
+local function lerp(a, b, t) return a + (b - a) * t end
+
+local function CreateStyledButton(parent, stroke, hover)
+    local sr, sg, sb, hr, hg, hb
+    if stroke then
+        sr, sg, sb = stroke[1], stroke[2], stroke[3]
+        if hover then
+            hr, hg, hb = hover[1], hover[2], hover[3]
+        else
+            hr = math.min(sr * 1.4, 1)
+            hg = math.min(sg * 1.4, 1)
+            hb = math.min(sb * 1.4, 1)
+        end
+    else
+        sr, sg, sb = 118/255, 120/255, 123/255  -- #76787B
+        hr, hg, hb = 1, 1, 1                    -- #FFFFFF
+    end
+
     local btn = CreateFrame("Button", nil, parent)
 
     local bg = btn:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
     bg:SetColorTexture(14/255, 19/255, 26/255, 1)  -- #0E131A
 
+    local borders = {}
     local function makeBorder(a, b, horiz)
         local t = btn:CreateTexture(nil, "BORDER")
         if horiz then t:SetHeight(1) else t:SetWidth(1) end
         t:SetPoint(a, btn, a)
         t:SetPoint(b, btn, b)
-        t:SetColorTexture(118/255, 120/255, 123/255, 1)  -- #76787B
+        t:SetColorTexture(sr, sg, sb, 1)
+        borders[#borders + 1] = t
     end
     makeBorder("TOPLEFT",    "TOPRIGHT",    true)
     makeBorder("BOTTOMLEFT", "BOTTOMRIGHT", true)
     makeBorder("TOPLEFT",    "BOTTOMLEFT",  false)
     makeBorder("TOPRIGHT",   "BOTTOMRIGHT", false)
 
-    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    local label = btn:CreateFontString(nil, "OVERLAY")
+    label:SetFont(EXPRESSWAY_FONT, 12, "")
     label:SetAllPoints()
     label:SetJustifyH("CENTER")
     label:SetJustifyV("MIDDLE")
-    label:SetTextColor(118/255, 120/255, 123/255, 1)  -- #76787B
+    label:SetTextColor(sr, sg, sb, 1)
+
+    -- Hover animation state
+    local hoverT  = 0
+    local animDir = 0
+
+    local function applyColors(t)
+        local r = lerp(sr, hr, t)
+        local g = lerp(sg, hg, t)
+        local b = lerp(sb, hb, t)
+        for _, border in ipairs(borders) do
+            border:SetColorTexture(r, g, b, 1)
+        end
+        label:SetTextColor(r, g, b, 1)
+    end
+
+    btn:SetScript("OnUpdate", function(self, dt)
+        if animDir == 0 then return end
+        hoverT = math.max(0, math.min(1, hoverT + animDir * dt / HOVER_DURATION))
+        applyColors(hoverT)
+        if hoverT == 0 or hoverT == 1 then animDir = 0 end
+    end)
+
+    btn:SetScript("OnEnter", function() animDir =  1 end)
+    btn:SetScript("OnLeave", function() animDir = -1 end)
 
     function btn:SetText(str) label:SetText(str) end
-    function btn:GetText() return label:GetText() end
+    function btn:GetText()    return label:GetText() end
 
     return btn
 end
@@ -311,9 +360,6 @@ function DarkRuneOrder.ShowPicker()
     ResetState(false)
     RefreshButtons()
 
-    -- Always show Undo
-    undoBtn:Show()
-
     -- Show Send Last if history exists
     if HasHistory() then
         sendLastBtn:Show()
@@ -326,14 +372,14 @@ function DarkRuneOrder.ShowPicker()
         UpdateDiffLabel()
         gearBtn:Show()
         testCastBtn:Show()
+        undoBtn:Hide()
         resetBtn:ClearAllPoints()
         resetBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", -46, 24)
-        undoBtn:ClearAllPoints()
-        undoBtn:SetPoint("LEFT", resetBtn, "RIGHT", 4, 0)
     else
         testLabel:Hide()
         gearBtn:Hide()
         testCastBtn:Hide()
+        undoBtn:Show()
         resetBtn:ClearAllPoints()
         resetBtn:SetPoint("BOTTOM", pickerFrame, "BOTTOM", -46, 24)
         undoBtn:ClearAllPoints()
