@@ -219,7 +219,7 @@ local positions = PentagonPositions()
 for i, sym in ipairs(DarkRuneOrder.Symbols) do
     local btn = CreateFrame("Button", nil, pickerFrame)
     btn:SetSize(44, 44)
-    btn:SetPoint("CENTER", pickerFrame, "CENTER", positions[i].x, positions[i].y + 14)
+    btn:SetPoint("CENTER", pickerFrame, "CENTER", positions[i].x, positions[i].y + 24)
 
     -- Colored stroke (outer circle, full button size)
     -- local strokeTex = btn:CreateTexture(nil, "BACKGROUND")
