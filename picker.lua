@@ -9,7 +9,7 @@ local function PentagonPositions()
     local pos = {}
     for i = 1, 5 do
         local angle = math.pi / 2 - (i - 1) * (2 * math.pi / 5)
-        pos[i] = { x = RADIUS * math.cos(angle), y = RADIUS * math.sin(angle) }
+        pos[i] = { x = RADIUS * math.cos(angle), y = -RADIUS * math.sin(angle) }
     end
     return pos
 end
