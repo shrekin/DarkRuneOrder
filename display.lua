@@ -87,6 +87,14 @@ local DARK_RUNE_ID   = 1249609
 local castEndTime    = 0
 local castDuration   = 1  -- avoid division by zero
 
+-- Resolve spell names at load time (name is public, spellId is secret in raid context)
+local DEATH_DIRGE_NAME = (C_Spell and C_Spell.GetSpellName(DEATH_DIRGE_ID))
+                      or (GetSpellInfo and GetSpellInfo(DEATH_DIRGE_ID))
+                      or "Death's Dirge"
+local DARK_RUNE_CAST_NAME = (C_Spell and C_Spell.GetSpellName(DARK_RUNE_ID))
+                         or (GetSpellInfo and GetSpellInfo(DARK_RUNE_ID))
+                         or "Dark Rune"
+
 local castBarFrame = CreateFrame("Frame", "DarkRuneOrderCastBar", UIParent)
 castBarFrame:SetHeight(18)
 castBarFrame:SetPoint("TOP", displayFrame, "BOTTOM", 0, -2)
@@ -141,8 +149,11 @@ castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
     end
     if not isBoss then return end
 
+    -- Use spell name to avoid "secret number" taint on boss spellIDs (same pattern as marked.lua)
+    local spellName = C_Spell and C_Spell.GetSpellName(spellID)
+
     if event == "UNIT_SPELLCAST_START" then
-        if spellID == DARK_RUNE_ID then
+        if spellName == DARK_RUNE_CAST_NAME then
             -- New mechanic starting: clear stale order and auto-open picker for leader/force
             DarkRuneOrderDB.lastOrder = nil
             DarkRuneOrder.HideDisplay()
@@ -152,7 +163,7 @@ castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
                 end
             end
 
-        elseif spellID == DEATH_DIRGE_ID then
+        elseif spellName == DEATH_DIRGE_NAME then
             local _, _, _, startMS, endMS = UnitCastingInfo(unitID)
             if startMS and endMS then
                 castDuration = math.max((endMS - startMS) / 1000, 0.001)
@@ -162,7 +173,7 @@ castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
             end
         end
 
-    elseif spellID == DEATH_DIRGE_ID then
+    elseif spellName == DEATH_DIRGE_NAME then
         castBarFrame:Hide()
     end
 end)
