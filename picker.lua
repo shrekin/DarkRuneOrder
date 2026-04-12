@@ -116,11 +116,9 @@ local function CreateStyledButton(parent, stroke, hover)
     makeBorder("TOPLEFT",    "BOTTOMLEFT",  false)
     makeBorder("TOPRIGHT",   "BOTTOMRIGHT", false)
 
-    local label = btn:CreateFontString(nil, "OVERLAY")
-    label:SetFont(EXPRESSWAY_FONT, 12, "")
-    label:SetAllPoints()
-    label:SetJustifyH("CENTER")
-    label:SetJustifyV("MIDDLE")
+    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetFont(EXPRESSWAY_FONT, 12)
+    label:SetPoint("CENTER", btn, "CENTER")
     label:SetTextColor(sr, sg, sb, 1)
 
     -- Hover animation state
@@ -147,8 +145,11 @@ local function CreateStyledButton(parent, stroke, hover)
     btn:SetScript("OnEnter", function() animDir =  1 end)
     btn:SetScript("OnLeave", function() animDir = -1 end)
 
-    function btn:SetText(str) label:SetText(str) end
-    function btn:GetText()    return label:GetText() end
+    -- Store label so SetText always hits our FontString,
+    -- not WoW's native Button:SetText which has no built-in FontString here.
+    btn._label = label
+    rawset(btn, "SetText", function(self, str) label:SetText(str) end)
+    rawset(btn, "GetText", function(self)      return label:GetText() end)
 
     return btn
 end
