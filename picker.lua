@@ -243,7 +243,7 @@ for i, sym in ipairs(DarkRuneOrder.Symbols) do
     -- Symbol icon
     local symIcon = btn:CreateTexture(nil, "OVERLAY")
     symIcon:SetSize(32, 32)
-    symIcon:SetPoint("CENTER", btn, "CENTER", 0, 0)
+    symIcon:SetPoint("CENTER", btn, "CENTER", 0, 18)
     symIcon:SetTexture(sym.texture)
 
     -- Number badge (top-right corner)
