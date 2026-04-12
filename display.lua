@@ -157,7 +157,7 @@ castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
             -- New mechanic starting: clear stale order and auto-open picker for leader/force
             DarkRuneOrderDB.lastOrder = nil
             DarkRuneOrder.HideDisplay()
-            if UnitIsGroupLeader("player") or DarkRuneOrder.forceMode then
+            if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") or DarkRuneOrder.forceMode then
                 if DarkRuneOrder.ShowPicker then
                     DarkRuneOrder.ShowPicker()
                 end

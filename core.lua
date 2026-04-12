@@ -90,7 +90,7 @@ function DarkRuneOrder.OnEncounterEnd()
     DarkRuneOrder.HideDisplay()
 end
 
--- Checks if a sender name belongs to the current raid/group leader
+-- Checks if a sender name belongs to the current raid/group leader or assistant
 function DarkRuneOrder.SenderIsLeader(sender)
     local senderShort = sender:match("^([^%-]+)") or sender
     if IsInRaid() then
@@ -99,7 +99,7 @@ function DarkRuneOrder.SenderIsLeader(sender)
             local name = UnitName(unit)
             if name then
                 local short = name:match("^([^%-]+)") or name
-                if short == senderShort and UnitIsGroupLeader(unit) then
+                if short == senderShort and (UnitIsGroupLeader(unit) or UnitIsGroupAssistant(unit)) then
                     return true
                 end
             end
@@ -111,7 +111,7 @@ function DarkRuneOrder.SenderIsLeader(sender)
             local name = UnitName(unit)
             if name then
                 local short = name:match("^([^%-]+)") or name
-                if short == senderShort and UnitIsGroupLeader(unit) then
+                if short == senderShort and (UnitIsGroupLeader(unit) or UnitIsGroupAssistant(unit)) then
                     return true
                 end
             end
@@ -119,7 +119,7 @@ function DarkRuneOrder.SenderIsLeader(sender)
         -- Check player
         local pname = UnitName("player")
         local pshort = (pname and pname:match("^([^%-]+)")) or pname
-        if pshort == senderShort and UnitIsGroupLeader("player") then
+        if pshort == senderShort and (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) then
             return true
         end
     end
@@ -181,16 +181,22 @@ function DarkRuneOrder.SendOrder(symbolIDs)
         table.remove(DarkRuneOrderDB.history)
     end
 
-    -- Announce order in chat (raid warning for leader, /say otherwise)
+    -- Announce order in chat
     local parts = {}
     for i, id in ipairs(symbolIDs) do
         parts[i] = id
     end
     local orderStr = table.concat(parts, ", ")
-    if not DarkRuneOrder.testMode and UnitIsGroupLeader("player") and IsInRaid() then
-        SendChatMessage(orderStr, "RAID_WARNING")
-    else
-        SendChatMessage(orderStr, "SAY")
+    if not DarkRuneOrder.testMode then
+        if UnitIsGroupLeader("player") and IsInRaid() then
+            SendChatMessage(orderStr, "RAID_WARNING")
+        elseif DarkRuneOrder.forceMode and IsInRaid() then
+            SendChatMessage(orderStr, "INSTANCE_CHAT")
+        elseif IsInGroup() then
+            SendChatMessage(orderStr, "PARTY")
+        else
+            SendChatMessage(orderStr, "SAY")
+        end
     end
 end
 
@@ -314,10 +320,10 @@ SlashCmdList["DARKRUNE"] = function(msg)
     else
         DarkRuneOrder.testMode = false
         DarkRuneOrder.forceMode = false
-        if UnitIsGroupLeader("player") then
+        if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") then
             DarkRuneOrder.ShowPicker()
         else
-            print("|cff00ff00DarkRuneOrder|r: Only the raid leader can open the picker. Use /dr force to override.")
+            print("|cff00ff00DarkRuneOrder|r: Only the raid leader or assistant can open the picker. Use /dr force to override.")
         end
     end
 end
