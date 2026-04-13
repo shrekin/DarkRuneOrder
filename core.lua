@@ -192,6 +192,9 @@ function DarkRuneOrder.SendOrder(symbolIDs)
             SendChatMessage(orderStr, "RAID_WARNING")
         elseif IsInRaid() then
             SendChatMessage(orderStr, "INSTANCE_CHAT")
+            if DarkRuneOrder.forceMode then
+                SendChatMessage(orderStr, "SAY")
+            end
         elseif IsInGroup() then
             SendChatMessage(orderStr, "PARTY")
         else
