@@ -142,6 +142,10 @@ castEventFrame:RegisterEvent("UNIT_SPELLCAST_STOP")
 castEventFrame:RegisterEvent("UNIT_SPELLCAST_FAILED")
 castEventFrame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
 
+-- Tracks whether we started monitoring a Death's Dirge cast,
+-- so STOP/FAILED/INTERRUPTED events can hide the bar without touching the tainted spellID.
+local castingDeathDirge = false
+
 castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
     local isBoss = false
     for _, boss in ipairs(BOSS_UNITS) do
@@ -149,12 +153,11 @@ castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
     end
     if not isBoss then return end
 
-    -- Use spell name to avoid "secret number" taint on boss spellIDs (same pattern as marked.lua)
-    local spellName = C_Spell and C_Spell.GetSpellName(spellID)
-
     if event == "UNIT_SPELLCAST_START" then
-        if spellName == DARK_RUNE_CAST_NAME then
-            -- New mechanic starting: clear stale order and auto-open picker for leader/force
+        -- UnitCastingInfo returns the cast name without touching the tainted spellID.
+        local castName = UnitCastingInfo(unitID)
+        if castName == DARK_RUNE_CAST_NAME then
+            castingDeathDirge = false
             DarkRuneOrderDB.lastOrder = nil
             DarkRuneOrder.HideDisplay()
             if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") or DarkRuneOrder.forceMode then
@@ -163,7 +166,8 @@ castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
                 end
             end
 
-        elseif spellName == DEATH_DIRGE_NAME then
+        elseif castName == DEATH_DIRGE_NAME then
+            castingDeathDirge = true
             local _, _, _, startMS, endMS = UnitCastingInfo(unitID)
             if startMS and endMS then
                 castDuration = math.max((endMS - startMS) / 1000, 0.001)
@@ -173,8 +177,12 @@ castEventFrame:SetScript("OnEvent", function(self, event, unitID, _, spellID)
             end
         end
 
-    elseif spellName == DEATH_DIRGE_NAME then
-        castBarFrame:Hide()
+    else
+        -- STOP / FAILED / INTERRUPTED: never touch spellID — use the flag instead.
+        if castingDeathDirge then
+            castingDeathDirge = false
+            castBarFrame:Hide()
+        end
     end
 end)
 

@@ -188,9 +188,9 @@ function DarkRuneOrder.SendOrder(symbolIDs)
     end
     local orderStr = table.concat(parts, ", ")
     if not DarkRuneOrder.testMode then
-        if UnitIsGroupLeader("player") and IsInRaid() then
+        if (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) and IsInRaid() then
             SendChatMessage(orderStr, "RAID_WARNING")
-        elseif DarkRuneOrder.forceMode and IsInRaid() then
+        elseif IsInRaid() then
             SendChatMessage(orderStr, "INSTANCE_CHAT")
         elseif IsInGroup() then
             SendChatMessage(orderStr, "PARTY")
