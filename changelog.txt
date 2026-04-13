@@ -1,3 +1,26 @@
+## v1.0.2 (2026-04-13)
+
+### Bug Fixes
+- Fixed taint errors in display.lua — replaced `C_Spell.GetSpellName(spellID)` with `UnitCastingInfo(unitID)` for UNIT_SPELLCAST_START to avoid propagating taint from secret boss spellIDs; STOP/FAILED/INTERRUPTED events now use a local flag instead of touching spellID entirely
+- Fixed ADDON_ACTION_FORBIDDEN error on SendChatMessage — was a secondary consequence of the spellName taint contaminating the addon's execution context
+- Fixed "Test Cast" button being obscured in test mode — `undoBtn` and `testCastBtn` were both shown at the same anchor point; visibility is now managed per branch in ShowPicker
+- Fixed `/dr force` chat announcement going to /say instead of /i — now correctly uses INSTANCE_CHAT when in a raid instance
+
+### New Features
+- Raid assistants can now open the picker with `/dr` (previously leader-only)
+- Raid assistants now broadcast order via /rw (RAID_WARNING), same as the raid leader
+- Non-leader, non-assistant players in a raid now broadcast order via /i (INSTANCE_CHAT) instead of /say
+- Pentagon symbol layout is now flipped vertically — point at bottom instead of top
+- Close button replaced with custom icon (close-popup-4.png) instead of Blizzard UIPanelCloseButton template
+- Custom styled buttons throughout the picker — fill #0E131A, stroke #76787B, Expressway font, no Blizzard templates
+- Smooth hover animation on all picker buttons — text and border lerp to #FFFFFF in 0.15s; custom stroke colors auto-brighten by 40%
+
+### Improvements
+- SenderIsLeader now also accepts raid assistants (UnitIsGroupAssistant) so ORDER messages from assistants are accepted by all clients
+- Button SetText uses rawset to guarantee Lua-level override takes precedence over WoW's native Button:SetText
+
+---
+
 ## v1.0.1 (2025-04-07)
 
 ### Bug Fixes
