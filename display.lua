@@ -82,18 +82,14 @@ end
 
 -- ── Cast bar (Death's Dirge, spell 1249620) ──────────────────────────────────
 
-local DEATH_DIRGE_ID = 1244412
-local DARK_RUNE_ID   = 1249609
 local castEndTime    = 0
 local castDuration   = 1  -- avoid division by zero
 
--- Resolve spell names at load time (name is public, spellId is secret in raid context)
-local DEATH_DIRGE_NAME = (C_Spell and C_Spell.GetSpellName(DEATH_DIRGE_ID))
-                      or (GetSpellInfo and GetSpellInfo(DEATH_DIRGE_ID))
-                      or "Death's Dirge"
-local DARK_RUNE_CAST_NAME = (C_Spell and C_Spell.GetSpellName(DARK_RUNE_ID))
-                         or (GetSpellInfo and GetSpellInfo(DARK_RUNE_ID))
-                         or "Dark Rune"
+-- Hardcoded spell names — boss spellIDs are secrets and calling GetSpellName
+-- with them in the main chunk taints the execution context, which causes
+-- subsequent Frame:RegisterEvent() to be blocked as a protected call.
+local DEATH_DIRGE_NAME    = "Death's Dirge"
+local DARK_RUNE_CAST_NAME = "Dark Rune"
 
 local castBarFrame = CreateFrame("Frame", "DarkRuneOrderCastBar", UIParent)
 castBarFrame:SetHeight(18)

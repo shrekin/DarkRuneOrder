@@ -7,14 +7,9 @@ local MAX_MARKED     = 5
 local ROW_H          = 20
 local ROUND_TIMEOUT  = 15  -- seconds between rounds
 
--- Resolve spell name once at load time (name is public, spellId is secret)
-local DARK_RUNE_NAME = C_Spell and C_Spell.GetSpellName(DARK_RUNE_ID)
-if not DARK_RUNE_NAME then
-    DARK_RUNE_NAME = GetSpellInfo and GetSpellInfo(DARK_RUNE_ID)
-end
-if not DARK_RUNE_NAME then
-    DARK_RUNE_NAME = "Dark Rune"  -- hardcoded fallback (D2)
-end
+-- Hardcoded spell name — boss spellID is a secret and calling GetSpellName
+-- with it in the main chunk taints the execution context.
+local DARK_RUNE_NAME = "Dark Rune"
 
 local markedPlayers = {}
 local lastMarkTime  = 0
