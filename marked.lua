@@ -116,7 +116,14 @@ end
 local function CheckUnit(unitID)
     if not UnitExists(unitID) then return end
     if not DARK_RUNE_NAME then return end
-    if not AuraUtil.FindAuraByName(DARK_RUNE_NAME, unitID, "HARMFUL") then return end
+    local hasAura
+    if C_UnitAuras and C_UnitAuras.GetAuraDataBySpellName then
+        hasAura = C_UnitAuras.GetAuraDataBySpellName(unitID, DARK_RUNE_NAME, "HARMFUL")
+    else
+        local ok, result = pcall(AuraUtil.FindAuraByName, DARK_RUNE_NAME, unitID, "HARMFUL")
+        hasAura = ok and result
+    end
+    if not hasAura then return end
 
     local name = UnitName(unitID)
     if not name then return end
