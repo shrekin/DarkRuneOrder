@@ -132,57 +132,55 @@ end)
 
 local BOSS_UNITS = { "boss1", "boss2", "boss3", "boss4", "boss5" }
 
--- Use COMBAT_LOG_EVENT_UNFILTERED instead of UNIT_SPELLCAST_*.
--- CLEU data from CombatLogGetCurrentEventInfo() is never tainted, unlike
--- values returned from unit APIs inside UNIT_SPELLCAST_* handlers during combat.
-local castEventFrame = CreateFrame("Frame")
-castEventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+-- Poll boss cast info via ticker — avoids RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+-- which is blocked as a protected call on this server.
+-- UnitCastingInfo comparisons with literal strings are safe: the boolean result
+-- of == is untainted even if the returned name is a secret string.
+local prevBossCast = {}
 
-castEventFrame:SetScript("OnEvent", function(self, event)
-    -- timestamp(1), subevent(2), hideCaster(3), sourceGUID(4), sourceName(5),
-    -- sourceFlags(6), sourceRaidFlags(7), destGUID(8..11), spellId(12), spellName(13)
-    local _, subevent, _, _, _, sourceFlags, _, _, _, _, _, _, spellName =
-        CombatLogGetCurrentEventInfo()
+C_Timer.NewTicker(0.25, function()
+    for _, unit in ipairs(BOSS_UNITS) do
+        if UnitExists(unit) then
+            local name = UnitCastingInfo(unit)
+            local prev = prevBossCast[unit]
 
-    -- Only care about hostile NPCs (bosses / encounter mobs)
-    if not sourceFlags then return end
-    if bit.band(sourceFlags, COMBATLOG_OBJECT_TYPE_NPC)       == 0 then return end
-    if bit.band(sourceFlags, COMBATLOG_OBJECT_REACTION_HOSTILE) == 0 then return end
+            if name ~= prev then
+                prevBossCast[unit] = name
 
-    if subevent == "SPELL_CAST_START" then
-        if spellName == DARK_RUNE_CAST_NAME then
-            DarkRuneOrderDB.lastOrder = nil
-            DarkRuneOrder.HideDisplay()
-            if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") or DarkRuneOrder.forceMode then
-                if DarkRuneOrder.ShowPicker then
-                    DarkRuneOrder.ShowPicker()
+                if name == DARK_RUNE_CAST_NAME then
+                    DarkRuneOrderDB = DarkRuneOrderDB or {}
+                    DarkRuneOrderDB.lastOrder = nil
+                    DarkRuneOrder.HideDisplay()
+                    if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") or DarkRuneOrder.forceMode then
+                        if DarkRuneOrder.ShowPicker then DarkRuneOrder.ShowPicker() end
+                    end
+
+                elseif name == DEATH_DIRGE_NAME then
+                    local startMS, endMS
+                    for _, boss in ipairs(BOSS_UNITS) do
+                        local n, _, _, s, e = UnitCastingInfo(boss)
+                        if n == DEATH_DIRGE_NAME and s and e then
+                            startMS, endMS = s, e
+                            break
+                        end
+                    end
+                    if startMS and endMS then
+                        castDuration = math.max((endMS - startMS) / 1000, 0.001)
+                        castEndTime  = endMS / 1000
+                    else
+                        castDuration = 5
+                        castEndTime  = GetTime() + 5
+                    end
+                    castBarFrame:SetWidth(displayFrame:GetWidth())
+                    castBarFrame:Show()
+
+                elseif prev == DEATH_DIRGE_NAME then
+                    -- Cast stopped or was interrupted
+                    castBarFrame:Hide()
                 end
             end
-
-        elseif spellName == DEATH_DIRGE_NAME then
-            -- UnitCastingInfo is safe to call inside a CLEU handler (clean context).
-            local startMS, endMS
-            for _, boss in ipairs(BOSS_UNITS) do
-                local n, _, _, s, e = UnitCastingInfo(boss)
-                if n == DEATH_DIRGE_NAME and s and e then
-                    startMS, endMS = s, e
-                    break
-                end
-            end
-            if startMS and endMS then
-                castDuration = math.max((endMS - startMS) / 1000, 0.001)
-                castEndTime  = endMS / 1000
-            else
-                castDuration = 5
-                castEndTime  = GetTime() + 5
-            end
-            castBarFrame:SetWidth(displayFrame:GetWidth())
-            castBarFrame:Show()
-        end
-
-    elseif subevent == "SPELL_CAST_STOP" or subevent == "SPELL_CAST_FAILED" then
-        if spellName == DEATH_DIRGE_NAME then
-            castBarFrame:Hide()
+        else
+            prevBossCast[unit] = nil
         end
     end
 end)

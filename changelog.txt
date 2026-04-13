@@ -5,7 +5,7 @@
 - Fixed ADDON_ACTION_FORBIDDEN error on SendChatMessage — was a secondary consequence of the spellName taint contaminating the addon's execution context
 - Fixed "Test Cast" button being obscured in test mode — `undoBtn` and `testCastBtn` were both shown at the same anchor point; visibility is now managed per branch in ShowPicker
 - Fixed `/dr force` chat announcement going to /say instead of /i — now correctly uses INSTANCE_CHAT when in a raid instance
-- Fixed ADDON_ACTION_FORBIDDEN on Frame:RegisterEvent() at load time — `C_Spell.GetSpellName(bossSpellID)` called in the main chunk taints the execution context, causing the subsequent `castEventFrame:RegisterEvent()` call to be blocked; replaced all boss spell ID lookups with hardcoded spell names in display.lua and marked.lua
+- Fixed ADDON_ACTION_FORBIDDEN on Frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED") — this event is restricted (protected) on this server; replaced the entire CLEU handler with a `C_Timer.NewTicker(0.25s)` that polls `UnitCastingInfo` on boss units, mirroring the approach already used in marked.lua; hardcoded boss spell names in display.lua and marked.lua to avoid taint from `C_Spell.GetSpellName(bossSpellID)` calls
 - Fixed minimap button left-click not recognising raid assistants — now checks `UnitIsGroupAssistant` in addition to `UnitIsGroupLeader`, consistent with the slash command behaviour
 - Fixed shared `fadeElapsed` upvalue in `StartFadeIn` — rapid successive calls to `ShowDisplay` no longer corrupt the fade animation; elapsed is now a closure-local variable
 - Fixed AuraUtil.FindAuraByName crash on leveling characters — `AuraUtilDataProvider` can be an empty table on low-level chars; now uses `C_UnitAuras.GetAuraDataBySpellName` with a pcall fallback
