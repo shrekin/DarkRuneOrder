@@ -160,6 +160,9 @@ local function CreateStyledButton(parent, stroke, hover)
     return btn
 end
 
+-- Expose factory so other modules (roster, etc.) can use the same style
+DarkRuneOrder.CreateStyledButton = CreateStyledButton
+
 -- Reset button (always visible)
 local resetBtn = CreateStyledButton(pickerFrame)
 resetBtn:SetSize(80, 22)

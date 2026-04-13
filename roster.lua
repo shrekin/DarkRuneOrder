@@ -38,12 +38,18 @@ rosterTitle:SetText("Addon Status")
 rosterTitle:SetTextColor(1, 1, 1, 1)
 
 -- Close button
-local rosterClose = CreateFrame("Button", nil, rosterFrame, "UIPanelCloseButton")
+local rosterClose = CreateFrame("Button", nil, rosterFrame)
 rosterClose:SetSize(24, 24)
-rosterClose:SetPoint("TOPRIGHT", rosterFrame, "TOPRIGHT", -2, -2)
+rosterClose:SetPoint("TOPRIGHT", rosterFrame, "TOPRIGHT", -8, -8)
+local rosterCloseTex = rosterClose:CreateTexture(nil, "ARTWORK")
+rosterCloseTex:SetAllPoints()
+rosterCloseTex:SetTexture("Interface\\AddOns\\DarkRuneOrder\\icons\\close-popup-4.png")
+rosterClose:SetScript("OnClick",  function() rosterFrame:Hide() end)
+rosterClose:SetScript("OnEnter", function() rosterCloseTex:SetAlpha(0.7) end)
+rosterClose:SetScript("OnLeave", function() rosterCloseTex:SetAlpha(1) end)
 
 -- Refresh button
-local refreshBtn = CreateFrame("Button", nil, rosterFrame, "GameMenuButtonTemplate")
+local refreshBtn = DarkRuneOrder.CreateStyledButton(rosterFrame)
 refreshBtn:SetSize(80, 22)
 refreshBtn:SetPoint("BOTTOM", rosterFrame, "BOTTOM", 0, 8)
 refreshBtn:SetText("Refresh")
