@@ -71,12 +71,12 @@ btn:SetScript("OnClick", function(self, button)
     if button == "LeftButton" then
         if DarkRuneOrder.testMode or DarkRuneOrder.forceMode then
             DarkRuneOrder.ShowPicker()
-        elseif UnitIsGroupLeader("player") then
+        elseif UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") then
             DarkRuneOrder.testMode = false
             DarkRuneOrder.forceMode = false
             DarkRuneOrder.ShowPicker()
         else
-            print("|cff00ff00DarkRuneOrder|r: Only the raid leader can open the picker. Right-click for test mode.")
+            print("|cff00ff00DarkRuneOrder|r: Only the raid leader or assistant can open the picker. Right-click for test mode.")
         end
     elseif button == "RightButton" then
         DarkRuneOrder.testMode = true

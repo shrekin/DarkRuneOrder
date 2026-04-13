@@ -2,7 +2,7 @@
 DarkRuneOrder = DarkRuneOrder or {}
 
 local ADDON_PREFIX = "DARKRUNE"
-local ADDON_VERSION = "1.0.1"
+local ADDON_VERSION = "1.0.2"
 
 -- Difficulty ID → number of symbols required
 local SYMBOL_COUNT = { [14] = 3, [15] = 4, [16] = 5 }

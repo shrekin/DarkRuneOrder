@@ -194,13 +194,12 @@ end)
 -- ── Public API ────────────────────────────────────────────────────────────────
 
 -- Fade-in animation helper (B2)
-local fadeElapsed = 0
 local function StartFadeIn(frame)
-    fadeElapsed = 0
+    local elapsed = 0
     frame:SetAlpha(0)
     frame:SetScript("OnUpdate", function(self, dt)
-        fadeElapsed = fadeElapsed + dt
-        local alpha = math.min(fadeElapsed / 0.3, 1)
+        elapsed = elapsed + dt
+        local alpha = math.min(elapsed / 0.3, 1)
         self:SetAlpha(alpha)
         if alpha >= 1 then
             self:SetScript("OnUpdate", nil)
