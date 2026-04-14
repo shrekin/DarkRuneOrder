@@ -85,10 +85,9 @@ end
 local castEndTime    = 0
 local castDuration   = 1  -- avoid division by zero
 
--- Spell names for L'ura abilities (hardcoded — do NOT derive from spellID via API,
--- as spellID from boss events is a secret tainted value on this server).
-local DARK_RUNE_NAME   = "Dark Rune"    -- spellID 1249609
-local DEATH_DIRGE_NAME = "Death's Dirge" -- spellID 1249620
+-- NOTE: all boss cast information (UnitCastingInfo name/spellID, UNIT_SPELLCAST_*
+-- spellID, COMBAT_LOG_EVENT_UNFILTERED) is secret-tainted on this server regardless
+-- of execution context. Picker is triggered from marked.lua via player aura detection.
 
 local castBarFrame = CreateFrame("Frame", "DarkRuneOrderCastBar", UIParent)
 castBarFrame:SetHeight(18)
@@ -128,68 +127,6 @@ castBarFrame:SetScript("OnUpdate", function(self)
     castBarFill:SetWidth(fillW)
     castBarLabel:SetText(string.format("Death's Dirge  %.1fs", remaining))
 end)
-
--- ── Boss cast polling ─────────────────────────────────────────────────────────
--- All three direct approaches have server-side restrictions:
---   • UNIT_SPELLCAST_* : spellID arg is "secret tainted" → comparison forbidden
---   • COMBAT_LOG_EVENT_UNFILTERED : Frame:RegisterEvent() is restricted
---   • UNIT_SPELLCAST_* + UnitCastingInfo inside handler : handler runs in the
---     tainted event context, so UnitCastingInfo also returns tainted name
---
--- Solution: poll with C_Timer.NewTicker. The ticker callback runs in a clean
--- (non-tainted) execution context, so UnitCastingInfo returns untainted values
--- that can be compared against hardcoded strings freely.
-
-local darkRuneActive = false  -- true while a boss is casting Dark Rune
-local dirgeActive    = false  -- true while a boss is casting Death's Dirge
-
-local function PollBossCasts()
-    local sawDarkRune = false
-    local sawDirge    = false
-
-    for i = 1, 5 do
-        local unit = "boss" .. i
-        if UnitExists(unit) then
-            local name, _, _, startMS, endMS = UnitCastingInfo(unit)
-
-            if name == DARK_RUNE_NAME then
-                sawDarkRune = true
-                if not darkRuneActive then
-                    darkRuneActive = true
-                    DarkRuneOrderDB = DarkRuneOrderDB or {}
-                    DarkRuneOrderDB.lastOrder = nil
-                    DarkRuneOrder.HideDisplay()
-                    if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") or DarkRuneOrder.forceMode then
-                        if DarkRuneOrder.ShowPicker then DarkRuneOrder.ShowPicker() end
-                    end
-                end
-
-            elseif name == DEATH_DIRGE_NAME then
-                sawDirge = true
-                if not dirgeActive then
-                    dirgeActive = true
-                    if startMS and endMS then
-                        castDuration = math.max((endMS - startMS) / 1000, 0.001)
-                        castEndTime  = endMS / 1000
-                    else
-                        castDuration = 5
-                        castEndTime  = GetTime() + 5
-                    end
-                    castBarFrame:SetWidth(displayFrame:GetWidth())
-                    castBarFrame:Show()
-                end
-            end
-        end
-    end
-
-    if not sawDarkRune then darkRuneActive = false end
-    if not sawDirge and dirgeActive then
-        dirgeActive = false
-        castBarFrame:Hide()
-    end
-end
-
-C_Timer.NewTicker(0.25, PollBossCasts)
 
 -- ── Public API ────────────────────────────────────────────────────────────────
 

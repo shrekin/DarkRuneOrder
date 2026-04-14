@@ -137,6 +137,19 @@ local function CheckUnit(unitID)
     lastMarkTime = now
 
     table.insert(markedPlayers, shortName)
+
+    -- First debuff of a new round → open picker for leader/assistant/forceMode.
+    -- Player aura data is not tainted, making this the only reliable trigger on
+    -- this server (all boss cast APIs return secret-tainted values).
+    if #markedPlayers == 1 then
+        DarkRuneOrderDB = DarkRuneOrderDB or {}
+        DarkRuneOrderDB.lastOrder = nil
+        DarkRuneOrder.HideDisplay()
+        if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") or DarkRuneOrder.forceMode then
+            if DarkRuneOrder.ShowPicker then DarkRuneOrder.ShowPicker() end
+        end
+    end
+
     RefreshMarked()
 end
 
