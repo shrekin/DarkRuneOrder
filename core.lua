@@ -188,17 +188,24 @@ function DarkRuneOrder.SendOrder(symbolIDs)
     end
     local orderStr = table.concat(parts, ", ")
     if not DarkRuneOrder.testMode then
+        -- SendChatMessage may be blocked during combat on this server (ADDON_ACTION_FORBIDDEN).
+        -- The order is already delivered via C_ChatInfo.SendAddonMessage above; the chat
+        -- announce is best-effort only.
+        local chatOk = true
         if (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) and IsInRaid() then
-            SendChatMessage(orderStr, "RAID_WARNING")
+            chatOk = pcall(SendChatMessage, orderStr, "RAID_WARNING")
         elseif IsInRaid() then
-            SendChatMessage(orderStr, "INSTANCE_CHAT")
+            chatOk = pcall(SendChatMessage, orderStr, "INSTANCE_CHAT")
             if DarkRuneOrder.forceMode then
-                SendChatMessage(orderStr, "SAY")
+                pcall(SendChatMessage, orderStr, "SAY")
             end
         elseif IsInGroup() then
-            SendChatMessage(orderStr, "PARTY")
+            chatOk = pcall(SendChatMessage, orderStr, "PARTY")
         else
-            SendChatMessage(orderStr, "SAY")
+            chatOk = pcall(SendChatMessage, orderStr, "SAY")
+        end
+        if not chatOk then
+            print("|cffff6600DarkRuneOrder|r: Chat zablokowany podczas walki — kolejnosc wyslana przez kanal dodatku.")
         end
     end
 end

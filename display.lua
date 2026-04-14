@@ -85,11 +85,9 @@ end
 local castEndTime    = 0
 local castDuration   = 1  -- avoid division by zero
 
--- Hardcoded spell names — boss spellIDs are secrets and calling GetSpellName
--- with them in the main chunk taints the execution context, which causes
--- subsequent Frame:RegisterEvent() to be blocked as a protected call.
-local DEATH_DIRGE_NAME    = "Death's Dirge"
-local DARK_RUNE_CAST_NAME = "Dark Rune"
+-- Spell IDs for L'ura abilities — integers cannot be "secret string" tainted.
+local DARK_RUNE_SPELL_ID   = 1249609  -- "Dark Rune"    (same as DARK_RUNE_ID in marked.lua)
+local DEATH_DIRGE_SPELL_ID = 1249620  -- "Death's Dirge"
 
 local castBarFrame = CreateFrame("Frame", "DarkRuneOrderCastBar", UIParent)
 castBarFrame:SetHeight(18)
@@ -130,57 +128,44 @@ castBarFrame:SetScript("OnUpdate", function(self)
     castBarLabel:SetText(string.format("Death's Dirge  %.1fs", remaining))
 end)
 
-local BOSS_UNITS = { "boss1", "boss2", "boss3", "boss4", "boss5" }
+-- Use UNIT_SPELLCAST events instead of polling UnitCastingInfo — the spellID
+-- argument is an integer and is never a "secret string", avoiding the taint errors
+-- that fired on every ticker tick during combat.
+local bossEventFrame = CreateFrame("Frame")
+bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_START",       "boss1", "boss2", "boss3", "boss4", "boss5")
+bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_STOP",        "boss1", "boss2", "boss3", "boss4", "boss5")
+bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTED", "boss1", "boss2", "boss3", "boss4", "boss5")
+bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_FAILED",      "boss1", "boss2", "boss3", "boss4", "boss5")
 
--- Poll boss cast info via ticker — avoids RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
--- which is blocked as a protected call on this server.
--- UnitCastingInfo comparisons with literal strings are safe: the boolean result
--- of == is untainted even if the returned name is a secret string.
-local prevBossCast = {}
-
-C_Timer.NewTicker(0.25, function()
-    for _, unit in ipairs(BOSS_UNITS) do
-        if UnitExists(unit) then
-            local name = UnitCastingInfo(unit)
-            local prev = prevBossCast[unit]
-
-            if name ~= prev then
-                prevBossCast[unit] = name
-
-                if name == DARK_RUNE_CAST_NAME then
-                    DarkRuneOrderDB = DarkRuneOrderDB or {}
-                    DarkRuneOrderDB.lastOrder = nil
-                    DarkRuneOrder.HideDisplay()
-                    if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") or DarkRuneOrder.forceMode then
-                        if DarkRuneOrder.ShowPicker then DarkRuneOrder.ShowPicker() end
-                    end
-
-                elseif name == DEATH_DIRGE_NAME then
-                    local startMS, endMS
-                    for _, boss in ipairs(BOSS_UNITS) do
-                        local n, _, _, s, e = UnitCastingInfo(boss)
-                        if n == DEATH_DIRGE_NAME and s and e then
-                            startMS, endMS = s, e
-                            break
-                        end
-                    end
-                    if startMS and endMS then
-                        castDuration = math.max((endMS - startMS) / 1000, 0.001)
-                        castEndTime  = endMS / 1000
-                    else
-                        castDuration = 5
-                        castEndTime  = GetTime() + 5
-                    end
-                    castBarFrame:SetWidth(displayFrame:GetWidth())
-                    castBarFrame:Show()
-
-                elseif prev == DEATH_DIRGE_NAME then
-                    -- Cast stopped or was interrupted
-                    castBarFrame:Hide()
-                end
+bossEventFrame:SetScript("OnEvent", function(self, event, unit, castGUID, spellID)
+    if event == "UNIT_SPELLCAST_START" then
+        if spellID == DARK_RUNE_SPELL_ID then
+            DarkRuneOrderDB = DarkRuneOrderDB or {}
+            DarkRuneOrderDB.lastOrder = nil
+            DarkRuneOrder.HideDisplay()
+            if UnitIsGroupLeader("player") or UnitIsGroupAssistant("player") or DarkRuneOrder.forceMode then
+                if DarkRuneOrder.ShowPicker then DarkRuneOrder.ShowPicker() end
             end
-        else
-            prevBossCast[unit] = nil
+
+        elseif spellID == DEATH_DIRGE_SPELL_ID then
+            -- Read only numeric timing — never compare the name string (secret-string taint)
+            local _, _, _, startMS, endMS = UnitCastingInfo(unit)
+            if startMS and endMS then
+                castDuration = math.max((endMS - startMS) / 1000, 0.001)
+                castEndTime  = endMS / 1000
+            else
+                castDuration = 5
+                castEndTime  = GetTime() + 5
+            end
+            castBarFrame:SetWidth(displayFrame:GetWidth())
+            castBarFrame:Show()
+        end
+
+    elseif event == "UNIT_SPELLCAST_STOP"
+        or event == "UNIT_SPELLCAST_INTERRUPTED"
+        or event == "UNIT_SPELLCAST_FAILED" then
+        if spellID == DEATH_DIRGE_SPELL_ID then
+            castBarFrame:Hide()
         end
     end
 end)
