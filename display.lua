@@ -128,46 +128,37 @@ castBarFrame:SetScript("OnUpdate", function(self)
     castBarLabel:SetText(string.format("Death's Dirge  %.1fs", remaining))
 end)
 
--- UNIT_SPELLCAST_* events for boss units deliver spellID as a "secret tainted"
--- value in TWW (Patch 12.x) — comparing it causes ADDON_ACTION_FORBIDDEN errors.
--- COMBAT_LOG_EVENT_UNFILTERED via CombatLogGetCurrentEventInfo() returns untainted
--- values that can be compared freely.
+-- In TWW 12.x, UNIT_SPELLCAST_* events mark spellID as a "secret tainted" value
+-- that cannot be compared (fires ADDON_ACTION_FORBIDDEN). COMBAT_LOG_EVENT_UNFILTERED
+-- is restricted on this server. Fix: register UNIT_SPELLCAST_* but declare only
+-- (self, event, unit) in the handler signature — Lua silently discards castGUID
+-- and spellID, so the tainted values are never assigned to any local variable.
+-- Spell identity is resolved by calling UnitCastingInfo with the clean unit token.
 
-local WATCHED_SUBEVENTS = {
-    SPELL_CAST_START   = true,
-    SPELL_CAST_SUCCESS = true,
-    SPELL_CAST_FAILED  = true,
-    SPELL_INTERRUPT    = true,
-}
+local DARK_RUNE_NAME   = "Dark Rune"
+local DEATH_DIRGE_NAME = "Death's Dirge"
 
-local function IsBossGUID(guid)
-    for i = 1, 5 do
-        if UnitGUID("boss" .. i) == guid then return true end
-    end
-    return false
-end
-
-local function GUIDToUnit(guid)
-    for i = 1, 5 do
-        local u = "boss" .. i
-        if UnitGUID(u) == guid then return u end
-    end
-end
+local darkRuneUnit = nil  -- boss token currently casting Dark Rune  (nil = none)
+local dirgeUnit    = nil  -- boss token currently casting Death's Dirge (nil = none)
 
 local bossEventFrame = CreateFrame("Frame")
-bossEventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_START",      "boss1", "boss2", "boss3", "boss4", "boss5")
+bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED",  "boss1", "boss2", "boss3", "boss4", "boss5")
+bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_STOP",       "boss1", "boss2", "boss3", "boss4", "boss5")
+bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTED","boss1", "boss2", "boss3", "boss4", "boss5")
+bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_FAILED",     "boss1", "boss2", "boss3", "boss4", "boss5")
 
-bossEventFrame:SetScript("OnEvent", function(self)
-    local _, subevent, _, sourceGUID, _, _, _, destGUID, _, _, _,
-          spellID, _, _, extraSpellID = CombatLogGetCurrentEventInfo()
+bossEventFrame:SetScript("OnEvent", function(self, event, unit)
+    -- castGUID and spellID are intentionally absent from the signature.
+    -- Lua discards the extra arguments → the tainted spellID is never stored
+    -- in a local, so the secret-value comparison error cannot fire.
 
-    if not WATCHED_SUBEVENTS[subevent] then return end
+    if event == "UNIT_SPELLCAST_START" then
+        -- Identify the spell via UnitCastingInfo using the clean unit token.
+        local name, _, _, startMS, endMS = UnitCastingInfo(unit)
 
-    if subevent == "SPELL_CAST_START" then
-        if spellID ~= DARK_RUNE_SPELL_ID and spellID ~= DEATH_DIRGE_SPELL_ID then return end
-        if not IsBossGUID(sourceGUID) then return end
-
-        if spellID == DARK_RUNE_SPELL_ID then
+        if name == DARK_RUNE_NAME and not darkRuneUnit then
+            darkRuneUnit = unit
             DarkRuneOrderDB = DarkRuneOrderDB or {}
             DarkRuneOrderDB.lastOrder = nil
             DarkRuneOrder.HideDisplay()
@@ -175,12 +166,8 @@ bossEventFrame:SetScript("OnEvent", function(self)
                 if DarkRuneOrder.ShowPicker then DarkRuneOrder.ShowPicker() end
             end
 
-        else  -- DEATH_DIRGE_SPELL_ID
-            local bossUnit = GUIDToUnit(sourceGUID)
-            local startMS, endMS
-            if bossUnit then
-                _, _, _, startMS, endMS = UnitCastingInfo(bossUnit)
-            end
+        elseif name == DEATH_DIRGE_NAME and not dirgeUnit then
+            dirgeUnit = unit
             if startMS and endMS then
                 castDuration = math.max((endMS - startMS) / 1000, 0.001)
                 castEndTime  = endMS / 1000
@@ -192,16 +179,10 @@ bossEventFrame:SetScript("OnEvent", function(self)
             castBarFrame:Show()
         end
 
-    elseif subevent == "SPELL_CAST_SUCCESS" or subevent == "SPELL_CAST_FAILED" then
-        if spellID ~= DEATH_DIRGE_SPELL_ID then return end
-        if not IsBossGUID(sourceGUID) then return end
-        castBarFrame:Hide()
-
-    elseif subevent == "SPELL_INTERRUPT" then
-        -- extraSpellID (field 15) = spell that was interrupted; destGUID = the caster whose spell was stopped
-        if extraSpellID ~= DEATH_DIRGE_SPELL_ID then return end
-        if not IsBossGUID(destGUID) then return end
-        castBarFrame:Hide()
+    else
+        -- SUCCEEDED / STOP / INTERRUPTED / FAILED — clear per-unit tracking state.
+        if unit == darkRuneUnit then darkRuneUnit = nil end
+        if unit == dirgeUnit    then dirgeUnit = nil; castBarFrame:Hide() end
     end
 end)
 
