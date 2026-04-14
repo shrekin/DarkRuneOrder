@@ -4,6 +4,7 @@
 - Fixed all taint and restriction errors in display.lua — every boss cast API on this server returns secret-tainted values regardless of execution context: `UNIT_SPELLCAST_*` spellID, `COMBAT_LOG_EVENT_UNFILTERED` (restricted), `UnitCastingInfo` name/timing in event handlers AND in `C_Timer` callbacks. Removed all boss-side cast detection from display.lua. Picker is now triggered from marked.lua when the **first player receives the Dark Rune debuff** in a new round (`#markedPlayers == 1` after insert) — player aura data via `C_UnitAuras.GetAuraDataBySpellName` is never tainted and remains the only reliable detection path on this server.
 - Fixed `ADDON_ACTION_FORBIDDEN UNKNOWN() x1` — cascading error eliminated by removing all boss cast API calls.
 - Fixed `/dr force` chat: order was not sent to `/say` when the player is raid leader or assistant (the `RAID_WARNING` branch skipped the `/say` call); force mode now always sends to `/i` (INSTANCE_CHAT when in raid, PARTY when in group) **and** `/say` regardless of player role, so players without the addon always see the order in chat.
+- Fixed `ADDON_ACTION_FORBIDDEN` on `SendChatMessage` during combat — `SendChatMessage` is a protected function blocked during combat lockdown on this server; added `InCombatLockdown()` guard that skips all chat attempts when in combat. The order continues to reach all addon users via `C_ChatInfo.SendAddonMessage` (called unconditionally before the chat section) — only the in-game chat announcement is suppressed.
 
 ---
 
