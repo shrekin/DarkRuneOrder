@@ -1,3 +1,13 @@
+## v1.0.3 (2026-04-14)
+
+### Bug Fixes
+- Fixed recurring taint errors (`display.lua:142`, `:167`) — in TWW Patch 12.x, `UNIT_SPELLCAST_START/STOP/INTERRUPTED/FAILED` deliver `spellID` for boss units as a "secret tainted" value when received by an addon frame; any `==` comparison against it throws `ADDON_ACTION_FORBIDDEN`. Replaced `RegisterUnitEvent("UNIT_SPELLCAST_*")` entirely with `COMBAT_LOG_EVENT_UNFILTERED` + `CombatLogGetCurrentEventInfo()` — the `spellID` from CLEU is an untainted number that can be compared freely. Lookup table `WATCHED_SUBEVENTS` ensures the high-frequency CLEU event returns early for unrelated combat events. Boss identity is verified via `IsBossGUID()` (checks boss1–boss5 by GUID) instead of relying on the tainted unit argument. Cast timing for Death's Dirge is obtained by converting GUID back to a unit token with `GUIDToUnit()` and calling `UnitCastingInfo()` on it.
+- Fixed `SPELL_INTERRUPT` not hiding the Death's Dirge cast bar — the new CLEU handler correctly reads `extraSpellID` (field 15) for `SPELL_INTERRUPT` subevents and checks it against `DEATH_DIRGE_SPELL_ID`; `destGUID` identifies the boss whose cast was interrupted.
+- Fixed `ADDON_ACTION_FORBIDDEN UNKNOWN() x1` — this was a cascading error caused by the taint context established when the secret `spellID` comparison failed; resolved as a side effect of the CLEU migration.
+- Fixed `/dr force` chat: order was not sent to `/say` when the player is raid leader or assistant (the `RAID_WARNING` branch skipped the `/say` call); force mode now always sends to `/i` (INSTANCE_CHAT when in raid, PARTY when in group) **and** `/say` regardless of player role, so players without the addon always see the order in chat.
+
+---
+
 ## v1.0.2 (2026-04-13)
 
 ### Bug Fixes

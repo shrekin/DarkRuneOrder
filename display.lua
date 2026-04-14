@@ -128,17 +128,45 @@ castBarFrame:SetScript("OnUpdate", function(self)
     castBarLabel:SetText(string.format("Death's Dirge  %.1fs", remaining))
 end)
 
--- Use UNIT_SPELLCAST events instead of polling UnitCastingInfo — the spellID
--- argument is an integer and is never a "secret string", avoiding the taint errors
--- that fired on every ticker tick during combat.
-local bossEventFrame = CreateFrame("Frame")
-bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_START",       "boss1", "boss2", "boss3", "boss4", "boss5")
-bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_STOP",        "boss1", "boss2", "boss3", "boss4", "boss5")
-bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_INTERRUPTED", "boss1", "boss2", "boss3", "boss4", "boss5")
-bossEventFrame:RegisterUnitEvent("UNIT_SPELLCAST_FAILED",      "boss1", "boss2", "boss3", "boss4", "boss5")
+-- UNIT_SPELLCAST_* events for boss units deliver spellID as a "secret tainted"
+-- value in TWW (Patch 12.x) — comparing it causes ADDON_ACTION_FORBIDDEN errors.
+-- COMBAT_LOG_EVENT_UNFILTERED via CombatLogGetCurrentEventInfo() returns untainted
+-- values that can be compared freely.
 
-bossEventFrame:SetScript("OnEvent", function(self, event, unit, castGUID, spellID)
-    if event == "UNIT_SPELLCAST_START" then
+local WATCHED_SUBEVENTS = {
+    SPELL_CAST_START   = true,
+    SPELL_CAST_SUCCESS = true,
+    SPELL_CAST_FAILED  = true,
+    SPELL_INTERRUPT    = true,
+}
+
+local function IsBossGUID(guid)
+    for i = 1, 5 do
+        if UnitGUID("boss" .. i) == guid then return true end
+    end
+    return false
+end
+
+local function GUIDToUnit(guid)
+    for i = 1, 5 do
+        local u = "boss" .. i
+        if UnitGUID(u) == guid then return u end
+    end
+end
+
+local bossEventFrame = CreateFrame("Frame")
+bossEventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+
+bossEventFrame:SetScript("OnEvent", function(self)
+    local _, subevent, _, sourceGUID, _, _, _, destGUID, _, _, _,
+          spellID, _, _, extraSpellID = CombatLogGetCurrentEventInfo()
+
+    if not WATCHED_SUBEVENTS[subevent] then return end
+
+    if subevent == "SPELL_CAST_START" then
+        if spellID ~= DARK_RUNE_SPELL_ID and spellID ~= DEATH_DIRGE_SPELL_ID then return end
+        if not IsBossGUID(sourceGUID) then return end
+
         if spellID == DARK_RUNE_SPELL_ID then
             DarkRuneOrderDB = DarkRuneOrderDB or {}
             DarkRuneOrderDB.lastOrder = nil
@@ -147,9 +175,12 @@ bossEventFrame:SetScript("OnEvent", function(self, event, unit, castGUID, spellI
                 if DarkRuneOrder.ShowPicker then DarkRuneOrder.ShowPicker() end
             end
 
-        elseif spellID == DEATH_DIRGE_SPELL_ID then
-            -- Read only numeric timing — never compare the name string (secret-string taint)
-            local _, _, _, startMS, endMS = UnitCastingInfo(unit)
+        else  -- DEATH_DIRGE_SPELL_ID
+            local bossUnit = GUIDToUnit(sourceGUID)
+            local startMS, endMS
+            if bossUnit then
+                _, _, _, startMS, endMS = UnitCastingInfo(bossUnit)
+            end
             if startMS and endMS then
                 castDuration = math.max((endMS - startMS) / 1000, 0.001)
                 castEndTime  = endMS / 1000
@@ -161,12 +192,16 @@ bossEventFrame:SetScript("OnEvent", function(self, event, unit, castGUID, spellI
             castBarFrame:Show()
         end
 
-    elseif event == "UNIT_SPELLCAST_STOP"
-        or event == "UNIT_SPELLCAST_INTERRUPTED"
-        or event == "UNIT_SPELLCAST_FAILED" then
-        if spellID == DEATH_DIRGE_SPELL_ID then
-            castBarFrame:Hide()
-        end
+    elseif subevent == "SPELL_CAST_SUCCESS" or subevent == "SPELL_CAST_FAILED" then
+        if spellID ~= DEATH_DIRGE_SPELL_ID then return end
+        if not IsBossGUID(sourceGUID) then return end
+        castBarFrame:Hide()
+
+    elseif subevent == "SPELL_INTERRUPT" then
+        -- extraSpellID (field 15) = spell that was interrupted; destGUID = the caster whose spell was stopped
+        if extraSpellID ~= DEATH_DIRGE_SPELL_ID then return end
+        if not IsBossGUID(destGUID) then return end
+        castBarFrame:Hide()
     end
 end)
 
