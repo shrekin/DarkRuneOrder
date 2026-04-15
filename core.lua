@@ -189,30 +189,33 @@ function DarkRuneOrder.SendOrder(symbolIDs)
     local orderStr = table.concat(parts, ", ")
     if not DarkRuneOrder.testMode then
         if InCombatLockdown() then
-            -- SendChatMessage is a protected function and is blocked during combat on this server.
+            -- C_ChatInfo.SendChatMessage is a protected function blocked during combat.
             -- The order has already been delivered via C_ChatInfo.SendAddonMessage above.
-            -- Suppress the chat attempt entirely to avoid ADDON_ACTION_FORBIDDEN being logged.
             if DarkRuneOrder.forceMode then
                 print("|cffff6600DarkRuneOrder|r: Chat zablokowany podczas walki — kolejnosc wyslana przez kanal dodatku.")
             end
         elseif DarkRuneOrder.forceMode then
-            -- Force mode: other players may not have the addon, so broadcast to /i (or /party) AND /say.
+            -- Force mode: other players may not have the addon, so broadcast to group AND /say.
+            local chatOk = true
             if IsInRaid() then
-                pcall(SendChatMessage, orderStr, "INSTANCE_CHAT")
+                chatOk = pcall(C_ChatInfo.SendChatMessage, orderStr, "INSTANCE_CHAT")
             elseif IsInGroup() then
-                pcall(SendChatMessage, orderStr, "PARTY")
+                chatOk = pcall(C_ChatInfo.SendChatMessage, orderStr, "PARTY")
             end
-            pcall(SendChatMessage, orderStr, "SAY")
+            pcall(C_ChatInfo.SendChatMessage, orderStr, "SAY")
+            if not chatOk then
+                print("|cffff6600DarkRuneOrder|r: Chat zablokowany podczas walki — kolejnosc wyslana przez kanal dodatku.")
+            end
         else
             local chatOk = true
             if (UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")) and IsInRaid() then
-                chatOk = pcall(SendChatMessage, orderStr, "RAID_WARNING")
+                chatOk = pcall(C_ChatInfo.SendChatMessage, orderStr, "RAID_WARNING")
             elseif IsInRaid() then
-                chatOk = pcall(SendChatMessage, orderStr, "INSTANCE_CHAT")
+                chatOk = pcall(C_ChatInfo.SendChatMessage, orderStr, "INSTANCE_CHAT")
             elseif IsInGroup() then
-                chatOk = pcall(SendChatMessage, orderStr, "PARTY")
+                chatOk = pcall(C_ChatInfo.SendChatMessage, orderStr, "PARTY")
             else
-                chatOk = pcall(SendChatMessage, orderStr, "SAY")
+                chatOk = pcall(C_ChatInfo.SendChatMessage, orderStr, "SAY")
             end
             if not chatOk then
                 print("|cffff6600DarkRuneOrder|r: Chat zablokowany podczas walki — kolejnosc wyslana przez kanal dodatku.")
