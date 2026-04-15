@@ -166,10 +166,19 @@ local function ScanGroupForDarkRune()
     end
 end
 
-C_Timer.NewTicker(0.5, ScanGroupForDarkRune)
-
 -- ── Callbacks called from core.lua's single event frame ──────────────────────
+
+local scanTicker = nil
+
+function DarkRuneOrder.StartScan()
+    if scanTicker then return end
+    scanTicker = C_Timer.NewTicker(0.5, ScanGroupForDarkRune)
+end
 
 function DarkRuneOrder.OnEncounterReset()
     ClearMarked()
+    if scanTicker then
+        scanTicker:Cancel()
+        scanTicker = nil
+    end
 end

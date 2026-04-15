@@ -35,6 +35,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "ENCOUNTER_START" then
         DarkRuneOrder.OnEncounterStart()
         if DarkRuneOrder.OnEncounterReset then DarkRuneOrder.OnEncounterReset() end
+        if DarkRuneOrder.StartScan then DarkRuneOrder.StartScan() end
     elseif event == "ENCOUNTER_END" then
         DarkRuneOrder.OnEncounterEnd()
         if DarkRuneOrder.OnEncounterReset then DarkRuneOrder.OnEncounterReset() end
